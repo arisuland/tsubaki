@@ -1,25 +1,25 @@
 name: Lint on Commit
-jobs:
-  on:
-    push:
-      branches:
-        - 'feature/**'
-        - 'bug/gh-**'
-        - 'issue/gh-**'
-        - staging
-        - master
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'feature/**'
+      - 'bug/gh-**'
+      - 'issue/gh-**'
+      - staging
+      - master
         
-      paths-ignore:
-        - '.github/**'
-        - '.vscode/**'
-        - 'assets/**'
-        - 'docker/**'
-        - '.idea/**'
-        - '.dockerignore'
-        - '.gitignore'
-        - '**.md'
-        - 'LICENSE'
-        - 'renovate.json'
+    paths-ignore:
+      - '.github/**'
+      - '.vscode/**'
+      - 'assets/**'
+      - 'docker/**'
+      - '.idea/**'
+      - '.dockerignore'
+      - '.gitignore'
+      - '**.md'
+      - 'LICENSE'
+      - 'renovate.json'
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -45,28 +45,28 @@ jobs:
         with:
           go-version: 1.16
           
-       - name: Install dependencies
-         run: go mod download && go get
+      - name: Install dependencies
+        run: go mod download && go get
          
-       # TODO: lint
-       - name: Build project to see if it compiles
-         run: make build
+      # TODO: lint
+      - name: Build project to see if it compiles
+        run: make build
          
-       - name: Format project for any formatting to apply
-         run: make fmt
+      - name: Format project for any formatting to apply
+        run: make fmt
          
-       - name: Check if git status is dirty
-         id: git_status
-         run: |
-           if [ -n "$(git status --porcelain)" ]; then
+      - name: Check if git status is dirty
+        id: git_status
+        run: |
+         if [ -n "$(git status --porcelain)" ]; then
              echo '::set-output name=STATUS_DIRTY::true'
-           else
-             echo '::set-output name=STATUS_DIRTY::false'
-           fi
+         else
+           echo '::set-output name=STATUS_DIRTY::false'
+         fi
            
-       - name: Commit changes (if dirty)
-         if: contains(steps.git_status.outputs.STATUS_DIRTY, 'true')
-         run: |
+      - name: Commit changes (if dirty)
+        if: contains(steps.git_status.outputs.STATUS_DIRTY, 'true')
+        run: |
            git config --global user.name "Noel[bot]"
            git config --global user.email "ohlookitsaugust@gmail.com"
          
