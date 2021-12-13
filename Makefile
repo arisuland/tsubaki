@@ -15,3 +15,15 @@ build.docker:
 
 fmt:
 	go fmt
+
+db.migrate:
+	@echo "Migrating development database..."
+	go run github.com/prisma/prisma-client-go migrate dev
+
+codegen:
+	go build cmd/codegen -ldflags "-s -w" -o ./build/codegen
+	./build/codegen
+
+docgen:
+	go build cmd/docgen -ldflags "-s -w" -o ./build/docgen
+	./build/docgen
