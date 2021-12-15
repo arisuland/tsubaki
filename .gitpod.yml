@@ -1,0 +1,11 @@
+tasks:
+  - init: go get && go build ./... && make build
+    command: go run
+
+ports:
+  - port: 8787
+    onOpen: open-preview
+
+vscode:
+  extensions:
+    - golang.go

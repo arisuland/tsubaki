@@ -1,35 +1,52 @@
 version: '3.8'
 services:
-  tsubaki:
-    container_name: tsubaki
-    build: .
-    restart: always
-    depends_on:
-      - meilisearch
-      - postgres
-      - redis
-    volumes:
-      - type: bind
-        source: /opt/arisu/tsubaki/config.yml
-        target: ./config.yml
-        read_only: true
+  # tsubaki:
+  #   container_name: tsubaki
+  #   build: .
+  #   restart: always
+  #   depends_on:
+  #     - meilisearch
+  #     - postgres
+  #     - redis
+  #   volumes:
+  #     - type: bind
+  #       source: /opt/arisu/tsubaki/config.yml
+  #       target: ./config.yml
+  #       read_only: true
 
-      - arisu_projects_data:/var/lib/tsubaki/data:rw
+  #     - arisu_projects_data:/var/lib/arisu/tsubaki/data:rw
 
   postgres:
     image: bitnami/postgresql:latest
     restart: always
+    environment:
+      - POSTGRESQL_USERNAME=noel
+      - POSTGRESQL_PASSWORD=noeliscutieuwu
     ports:
       - '5432:5432'
-    command: |
-      --health-cmd pg_isready
-      --health-interval 10s
-      --health-timeout 5s
-      --health-retries 5
+    volumes:
+      - arisu_projects_data:/bitnami/postgresql
+
+  redis:
+    image: bitnami/redis:latest
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - arisu_redis_data:/bitnami/redis
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    restart: always
+    command: ./meilisearch --master-key=ohthankgodthisisnotprod --no-analytics=true
+    ports:
+      - '7700:7700'
 
 networks:
   blep:
-    driver: app-tier
+    driver: bridge
 
 volumes:
   arisu_postgres_data:

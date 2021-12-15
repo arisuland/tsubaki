@@ -1,6 +1,7 @@
-FROM golang:17-alpine AS builder
+FROM golang:1.17.5-alpine AS builder
 
 WORKDIR /build/tsubaki
+COPY . .
 RUN go get
 RUN make build
 
