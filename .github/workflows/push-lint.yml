@@ -46,6 +46,7 @@ jobs:
 
       - name: Setup Prisma schema
         run: |
+          echo "DATABASE_URL=postgresql://arisu:owowhatsthis@localhost:5432/tsubaki?schema=arisu" >> ~/.env
           make db.generate
           
       - name: Install dependencies
