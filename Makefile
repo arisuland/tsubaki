@@ -50,6 +50,11 @@ db.fmt:
 	@echo Formatting .prisma files...
 	go run github.com/prisma/prisma-client-go format
 
+# Usage: `make db.generate`
+db.generate:
+	@echo Generating Prisma artifacts...
+	go run github.com/prisma/prisma-client-go generate
+
 # Usage: `make codegen`
 codegen:
 	go build cmd/codegen -ldflags "-s -w" -o ./build/codegen

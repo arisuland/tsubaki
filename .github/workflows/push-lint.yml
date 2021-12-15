@@ -43,6 +43,10 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.16
+
+      - name: Setup Prisma schema
+        run: |
+          make db.generate
           
       - name: Install dependencies
         run: go mod download && go get
