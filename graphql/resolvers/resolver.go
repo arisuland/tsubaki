@@ -16,6 +16,10 @@
 
 package resolvers
 
-func (r *Resolver) Hello() string {
-	return "hello!"
+import "arisu.land/tsubaki/infra"
+
+// Resolver represents the main resolver tree to use in our GraphQL schema.
+type Resolver struct {
+	// Container is the main container that holds everything in.
+	Container *infra.Container
 }

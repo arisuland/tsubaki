@@ -33,7 +33,7 @@ type RedisManager struct {
 	Connection *redis.Client
 
 	// config represents the Redis configuration.
-	config *RedisConfig
+	config RedisConfig
 
 	// logger is the slog.Logger for this RedisManager instance.
 	logger slog.Logger
@@ -77,11 +77,11 @@ type RedisConfig struct {
 	// Returns the port to use when connecting to Redis.
 	//
 	// Default: 6379 | Variable: TSUBAKI_REDIS_PORT
-	Port int16 `yaml:"port"`
+	Port int `yaml:"port"`
 }
 
 // NewRedisClient initialises a new RedisManager instance.
-func NewRedisClient(config *RedisConfig) *RedisManager {
+func NewRedisClient(config RedisConfig) *RedisManager {
 	return &RedisManager{
 		Connection: nil,
 		config:     config,

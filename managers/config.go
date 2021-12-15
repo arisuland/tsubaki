@@ -24,11 +24,14 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"github.com/getsentry/sentry-go"
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -49,6 +52,12 @@ type Config struct {
 	// Default: true | Env Variable: TSUBAKI_REGISTRATIONS
 	Registrations bool `yaml:"registrations"`
 
+	// Sets the environment of the project. If this is set to `development` (which is the default),
+	// it will have a GraphQL playground available for you to test the API!
+	//
+	// Default: "development" | Env Variable: TSUBAKI_GO_ENV or GO_ENV
+	Environment string `yaml:"environment"`
+
 	// DSN URI to link up Sentry to Tsubaki. This will output GraphQL, request, and database
 	// errors towards Sentry.
 	//
@@ -61,27 +70,36 @@ type Config struct {
 	// Default: false | Env Variable: TSUBAKI_ENABLE_TELEMETRY
 	TelemetryEnabled bool `yaml:"telemetry"`
 
+	// If this Tsubaki instance should be invite only, in which,
+	// if Registrations is disabled, this is also disabled.
+	//
+	// If Registrations is enabled, the administrators will
+	// allow you to join the instance or be denied via email.
+	//
+	// Default: false | Env Variable: TSUBAKI_INVITE_ONLY
+	InviteOnly bool `yaml:"invite_only"`
+
 	// Returns the site-name to embed on the navbar of your Fubuki instance.
 	//
 	// Default: "Arisu" | Env Variable: TSUBAKI_SITE_NAME
-	SiteName *string `yaml:"site_name"`
+	SiteName string `yaml:"site_name"`
 
 	// Returns the site icon to use when displayed on the website.
 	//
 	// Default: https://cdn.arisu.land/lotus.png | Env Variable: TSUBAKI_SITE_ICON
-	SiteIcon *string `yaml:"site_icon"`
+	SiteIcon string `yaml:"site_icon"`
 
 	// Returns a number on how many retries before panicking on an unavailable port
 	// to run Tsubaki on. To disable this, use `-1` as the value.
 	//
 	// Default: 5 | Min: -1 | Max: 15 | Env Variable: TSUBAKI_PORT_RETRY
-	PortRetryLimit int8 `yaml:"port_retry"`
+	PortRetryLimit int `yaml:"port_retry"`
 
 	// Uses a host URI when launching the HTTP server. If you wish to keep Tsubaki
 	// running internally, you can use `127.0.0.1` instead of the default `0.0.0.0`.
 	//
 	// Default: "0.0.0.0" | Env Variable: TSUBAKI_HOST or HOST
-	Host *string `yaml:"host"`
+	Host string `yaml:"host"`
 
 	// Uses a different port other than 2809. If the port is taken, it will
 	// try to find an available one round-robin style and use that one that
@@ -91,7 +109,7 @@ type Config struct {
 	// Range: 80-65535 on root; 1024-65535 on non-root
 	//
 	// Default: 28093 | Env Variable: TSUBAKI_PORT or PORT
-	Port int16 `yaml:"port"`
+	Port int `yaml:"port"`
 
 	// Returns the configuration for using the filesystem, S3,
 	// or Google Cloud Storage to backup your projects.
@@ -102,7 +120,7 @@ type Config struct {
 	// This is required if you're running the GitHub bot.
 	//
 	// Default: nil | Prefix: TSUBAKI_KAFKA
-	Kafka kafka.Config `yaml:"kafka"`
+	Kafka *kafka.Config `yaml:"kafka"`
 
 	// Returns the configuration for using the filesystem, S3,
 	// or Google Cloud Storage to backup your projects.
@@ -140,7 +158,16 @@ func loadConfig() (*Config, error) {
 	flag.Parse()
 
 	if configFile == nil {
-		log.Warn(context.Background(), "Missing config file flag, checking from environment variables...")
+		// Check if the root directory has the file (most likely)
+		_, err := os.Stat("./config.yml")
+		if !os.IsNotExist(err) {
+			log.Info(context.Background(), "Found config.yml file in current directory, loading from that...")
+
+			owo := "./config.yml"
+			configFile = &owo
+		}
+
+		log.Warn(context.Background(), "Couldn't find `-c` flag or from current directory, loading from environment variables...")
 		return loadFromEnvironment()
 	}
 
@@ -153,6 +180,34 @@ func loadConfig() (*Config, error) {
 	err = yaml.Unmarshal(contents, &config)
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate if `environment` exists
+	if config.Environment == "" {
+		return nil, errors.New("missing `environment` scope in config.yml")
+	}
+
+	// Check if it's not "development" or "production"
+	validEnvs := []string{"development", "production"}
+	var valid = false
+
+	for _, key := range validEnvs {
+		if key == config.Environment {
+			valid = true
+		}
+	}
+
+	if !valid {
+		return nil, errors.New(fmt.Sprintf("unknown go env: %s", config.Environment))
+	}
+
+	// Check for site icon / site name
+	if config.SiteName == "" {
+		config.SiteName = "Arisu"
+	}
+
+	if config.SiteIcon == "" {
+		config.SiteIcon = "https://cdn.arisu.land/lotus.png"
 	}
 
 	return &config, nil
@@ -172,35 +227,12 @@ func loadFromEnvironment() (*Config, error) {
 	}
 
 	// this is going to get messy real quick...
-	envRegistrations := os.Getenv("TSUBAKI_REGISTRATIONS")
 	envSentryDsn := os.Getenv("TSUBAKI_SENTRY_DSN")
-	//envTelemetryEnabled := os.Getenv("TSUBAKI_ENABLE_TELEMETRY")
-	//envSiteName := os.Getenv("TSUBAKI_SITE_NAME")
-	//envSiteIcon := os.Getenv("TSUBAKI_SITE_ICON")
-	//envPortRetryLimit := os.Getenv("TSUBAKI_PORT_RETRY")
-	//envHost := os.Getenv("TSUBAKI_HOST")
-	//envPort := os.Getenv("TSUBAKI_PORT")
-
-	// Check if we can cast `registrations` into a bool
-	var registrations bool
-	if envRegistrations == "" {
-		// Registrations are enabled by default if it is not provided
-		registrations = true
-	} else {
-		// We can do "yes"/"no" style booleans.
-		if envRegistrations == "yes" || envRegistrations == "true" {
-			registrations = true
-		}
-
-		if envRegistrations == "no" || envRegistrations == "false" {
-			registrations = false
-		}
-	}
 
 	// If the sentry dsn is specified, check if it is a valid one
 	var sentryDsn *string
 	if envSentryDsn != "" {
-		dsn, err := sentry.NewDsn(envSentryDsn);
+		dsn, err := sentry.NewDsn(envSentryDsn)
 		if err != nil {
 			return nil, err
 		}
@@ -211,8 +243,174 @@ func loadFromEnvironment() (*Config, error) {
 		sentryDsn = nil
 	}
 
+	telemetryEnabled := convertToBool(os.Getenv("TSUBAKI_ENABLE_TELEMETRY"), false)
+	if telemetryEnabled {
+		log.Warn(context.Background(), "You have enabled telemetry reports! You have been warned... :ghost: (https://docs.arisu.land/telemetry)")
+	}
+
+	portRetryLimit, err := strconv.Atoi(os.Getenv("TSUBAKI_PORT_RETRY_LIMIT"))
+	if err != nil {
+		return nil, err
+	}
+
+	// this is ugly send help
+	var port int
+	var portEnv string
+	if portEnv = os.Getenv("TSUBAKI_PORT"); portEnv == "" {
+		if portEnv = os.Getenv("PORT"); portEnv == "" {
+			portEnv = "none"
+		}
+	}
+
+	if portEnv == "none" {
+		port = 28093
+	} else {
+		portInt, err := convertToInt(portEnv, 28093)
+		if err != nil {
+			return nil, err
+		}
+
+		port = portInt
+	}
+
+	// this still looks ugly :sob:
+	var host string
+	var hostEnv string
+	if hostEnv = os.Getenv("TSUBAKI_HOST"); hostEnv == "" {
+		if hostEnv = os.Getenv("HOST"); hostEnv == "" {
+			host = "0.0.0.0"
+		}
+	}
+
+	if hostEnv == "none" {
+		host = "0.0.0.0"
+	} else {
+		host = fallbackEnvString(hostEnv, "0.0.0.0")
+	}
+
+	// Now we need to get Redis, Kafka, and Storage env handlers WAAAAAA
+	kafkaConfig := getKafkaConfig()
+	redisConfig, err := getRedisConfig()
+
+	if err != nil {
+		return nil, err
+	}
+
+	storageConfig := getStorageConfig()
+
 	return &Config{
-		Registrations: registrations,
-		SentryDsn:     sentryDsn,
+		TelemetryEnabled: telemetryEnabled,
+		PortRetryLimit:   portRetryLimit,
+		Registrations:    convertToBool(os.Getenv("TSUBAKI_REGISTRATIONS"), true),
+		SentryDsn:        sentryDsn,
+		SiteName:         fallbackEnvString(os.Getenv("TSUBAKI_SITE_NAME"), "Arisu"),
+		SiteIcon:         fallbackEnvString(os.Getenv("TSUBAKI_SITE_ICON"), "https://cdn.arisu.land/lotus.png"),
+		Storage:          storageConfig,
+		Kafka:            kafkaConfig,
+		Redis:            *redisConfig,
+		Port:             port,
+		Host:             host,
 	}, nil
+}
+
+// convertToBool basically converts the envString provided into a boolean.
+func convertToBool(envString string, fallback bool) bool {
+	var value bool
+	if envString == "" {
+		value = fallback
+	} else {
+		if envString == "yes" || envString == "true" {
+			value = true
+		}
+
+		if envString == "no" || envString == "false" {
+			value = false
+		}
+	}
+
+	return value
+}
+
+func convertToInt(envString string, fallback int) (int, error) {
+	if envString == "" {
+		return fallback, nil
+	} else {
+		value, err := strconv.Atoi(envString)
+		if err != nil {
+			return fallback, NotIntError
+		}
+
+		return value, nil
+	}
+}
+
+func fallbackEnvString(envString string, fallback string) string {
+	if envString == "" {
+		return fallback
+	} else {
+		return envString
+	}
+}
+
+func getKafkaConfig() *kafka.Config {
+	// Check if keys exist
+	enabled := os.Getenv("TSUBAKI_KAFKA_BROKERS") == "" || os.Getenv("TSUBAKI_KAFKA_TOPIC") == ""
+	if !enabled {
+		return nil
+	}
+
+	return &kafka.Config{
+		AutoCreateTopics: convertToBool(os.Getenv("TSUBAKI_KAFKA_AUTO_CREATE_TOPICS"), true),
+		Brokers:          strings.Split(os.Getenv("TSUBAKI_KAFKA_BROKERS"), ","),
+		Topic:            fallbackEnvString(os.Getenv("TSUBAKI_KAFKA_TOPIC"), "arisu:tsubaki"),
+	}
+}
+
+func getRedisConfig() (*RedisConfig, error) {
+	var password *string
+	if os.Getenv("TSUBAKI_REDIS_PASSWORD") != "" {
+		p := os.Getenv("TSUBAKI_REDIS_PASSWORD")
+		password = &p
+	}
+
+	var masterName *string
+	if os.Getenv("TSUBAKI_REDIS_SENTINEL_MASTER") != "" {
+		m := os.Getenv("TSUBAKI_REDIS_SENTINEL_MASTER")
+		masterName = &m
+	}
+
+	dbIndex, err := convertToInt(os.Getenv("TSUBAKI_REDIS_DATABASE_INDEX"), 5)
+	if err != nil {
+		return nil, err
+	}
+
+	redisPort, err := convertToInt(os.Getenv("TSUBAKI_REDIS_PORT"), 6379)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RedisConfig{
+		Sentinels:  strings.Split(os.Getenv("TSUBAKI_REDIS_SENTINEL_SERVERS"), ","),
+		Password:   password,
+		MasterName: masterName,
+		DbIndex:    dbIndex,
+		Host:       fallbackEnvString(os.Getenv("TSUBAKI_REDIS_HOST"), "localhost"),
+		Port:       redisPort,
+	}, nil
+}
+
+func getStorageConfig() storage.Config {
+	// Check if the directory env variable exists
+	if os.Getenv("TSUBAKI_STORAGE_FS_DIRECTORY") != "" {
+		return storage.Config{
+			Filesystem: &storage.FilesystemStorageConfig{
+				Directory: fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_FS_DIRECTORY"), "./.arisu"),
+			},
+		}
+	}
+
+	// Check if any S3 keys exist
+	// aka this is going to be messy real quick
+
+	return storage.Config{}
 }

@@ -19,11 +19,15 @@ package infra
 import (
 	"arisu.land/tsubaki/kafka"
 	"arisu.land/tsubaki/managers"
+	"arisu.land/tsubaki/storage"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
+	"errors"
 	"os"
 )
+
+var log = slog.Make(sloghuman.Sink(os.Stdout))
 
 // Container is the main core part of Tsubaki. This is a containerized
 // struct of all the core components Tsubaki needs to use.
@@ -31,8 +35,20 @@ type Container struct {
 	// Prometheus is the metrics manager that is used to measure metrics.
 	Prometheus managers.Prometheus
 
+	// Database is the database connection using Prisma.
+	Database managers.Prisma
+
 	// Snowflake is the snowflake generator to use to generate unique IDs.
 	Snowflake *managers.SnowflakeManager
+
+	// Storage is the base storage manager to use
+	Storage storage.BaseStorageProvider
+
+	// Config is the configuration used to configure this Tsubaki instance
+	Config *managers.Config
+
+	// Redis the Redis manager to use for caching user sessions.
+	Redis *managers.RedisManager
 
 	// Kafka returns the producer we need, this can be `nil` if the config
 	// option is not defined.
@@ -41,20 +57,90 @@ type Container struct {
 
 // NewContainer creates a new Container instance.
 func NewContainer() (*Container, error) {
-	logger := slog.Make(sloghuman.Sink(os.Stdout))
-	logger.Info(context.Background(), "Initializing container...")
+	log.Info(context.Background(), "Initializing container...")
+
+	// Load configuration
+	config, err := managers.NewConfig()
+	if err != nil {
+		return nil, err
+	}
 
 	// Create Prometheus instance
 	prom := managers.NewPrometheus()
 
+	// Create the Prisma client and connect
+	prisma := managers.NewPrisma()
+	if err = prisma.Connect(); err != nil {
+		return nil, err
+	}
+
+	// Create the Redis connection
+	redis := managers.NewRedisClient(config.Redis)
+	if err := redis.Connect(); err != nil {
+		return nil, err
+	}
+
 	// Create the snowflake manager
-	snowflake, err := managers.NewSnowflakeManager();
+	snowflake, err := managers.NewSnowflakeManager()
 	if err != nil {
 		return nil, err
+	}
+
+	// Create the storage providers
+	var storageProvider storage.BaseStorageProvider
+	if config.Storage.Filesystem != nil {
+		storageProvider := storage.NewFilesystemStorageProvider(*config.Storage.Filesystem)
+		if err := storageProvider.Init(); err != nil {
+			return nil, err
+		}
+	} else if config.Storage.S3 != nil {
+		storageProvider := storage.NewS3StorageProvider(config.Storage.S3)
+		if err := storageProvider.Init(); err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, errors.New("missing storage provider to use")
+	}
+
+	// Create the Kafka producer (if config is enabled)
+	var producer *kafka.Producer
+	if config.Kafka != nil {
+		producer = kafka.NewProducer(*config.Kafka)
 	}
 
 	return &Container{
 		Prometheus: prom,
 		Snowflake:  snowflake,
+		Database:   prisma,
+		Storage:    storageProvider,
+		Config:     config,
+		Redis:      redis,
+		Kafka:      producer,
 	}, nil
+}
+
+// Close closes off all components and destroys data.
+func (c *Container) Close() error {
+	// Close off Redis
+	log.Warn(context.Background(), "Closing Redis connection...")
+	if err := c.Redis.Connection.Close(); err != nil {
+		return err
+	}
+
+	// Close off Prisma
+	log.Warn(context.Background(), "Closing PostgreSQL connection...")
+	if err := c.Database.Close(); err != nil {
+		return err
+	}
+
+	// Close off Kafka (if we are connected)
+	if c.Kafka != nil {
+		log.Warn(context.Background(), "Closing off Kafka producer...")
+		if err := c.Kafka.Writer.Close(); err != nil {
+			return err
+		}
+	}
+
+	log.Warn(context.Background(), "Services have been closed.")
+	return nil
 }

@@ -14,8 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package resolvers
+package util
 
-func (r *Resolver) Hello() string {
-	return "hello!"
+import (
+	"os"
+	"path/filepath"
+)
+
+// CreateFile creates a new file with the given path.
+func CreateFile(path string) (*os.File, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0770); err != nil {
+		return nil, err
+	}
+
+	return os.Create(path)
 }

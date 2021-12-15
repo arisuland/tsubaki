@@ -16,55 +16,88 @@
 
 package storage
 
-/*
-  # Configures using S3 to host your projects, once the bucket is gone,
-  # Arisu will attempt to create the bucket but your data will be lost.
-  #
-  # Type: S3StorageConfig
-  s3:
-    # Returns the provider to use when authenticating to S3. Arisu supports
-    # Amazon S3, Wasabi, or using Minio. By default, it will attempt to use
-    # Amazon S3.
-    #
-    # Type: S3Provider?
-    # Variable: TSUBAKI_STORAGE_S3_PROVIDER
-    # Default: S3Provider.AMAZON
-    provider: S3Provider
+import (
+	"context"
+)
 
-    # Returns the bucket to use when storing files. If this bucket
-    # doesn't exist, Arisu will attempt to create the bucket.
-    # By default, Arisu will use `arisu` as the default bucket name
-    # if this is not set.
-    #
-    # Type: String
-    # Variable: TSUBAKI_STORAGE_S3_BUCKET
-    # Default: "arisu"
-    bucket: String
+// Provider is the S3 provider to use the endpoints from
+type Provider string
 
-    # Returns the access key for authenticating to S3. If this isn't provided,
-    # it will attempt to look for your credentials stored in `~/.aws`. This is a
-    # recommended variable to set if using the S3 provider.
-    #
-    # Type: String
-    # Variable: TSUBAKI_STORAGE_S3_ACCESS_KEY
-    # Default: "access_key" key in ~/.aws/tsubaki_config
-    access_key: String
+var (
+	// Wasabi is a Provider that uses Wasabi as your storage bucket.
+	Wasabi Provider = "wasabi"
 
-    # Returns the secret key for authenticating to S3. If this isn't provided,
-    # it will attempt to look for your credentials stored in `~/.aws`. This is a
-    # recommended variable to set if using the S3 provider.
-    #
-    # Type: String
-    # Variable: TSUBAKI_STORAGE_S3_SECRET_KEY
-    # Default: "access_key" key in ~/.aws/tsubaki_config
-    secret_key: String
+	// Custom is a custom-set URI to use to connect to Amazon S3
+	Custom Provider = "custom"
 
-    # Returns the region to host your bucket, this is dependant on if you
-    # created the bucket without running Tsubaki. This is required to set to
-    # so no errors will occur while authenticating to S3.
-    #
-    # Type: String
-    # Variable: TSUBAKI_STORAGE_S3_REGION
-    # Default: "us-east1"
-    region: String
-*/
+	// Amazon is the Provider to use Amazon S3, the URI will return nil
+	Amazon Provider = "amazon"
+)
+
+// S3StorageProvider is a provider for using S3 for hosting your images.
+// This can be any compatible S3 servers like Wasabi or Minio. In the docker-compose
+// file, it will have configuration for a Minio instance to use within Arisu.
+type S3StorageProvider struct {
+	Config *S3StorageConfig
+}
+
+// S3StorageConfig is the configuration for a S3StorageProvider instance.
+type S3StorageConfig struct {
+	// SecretKey is the secret key used to authenticate.
+	SecretKey *string `yaml:"secret_key"`
+
+	// AccessKey is the access key used to authenticate.
+	AccessKey *string `yaml:"access_key"`
+
+	// Provider is the Provider to use instead of Amazon S3
+	Provider Provider `yaml:"provider"`
+
+	// Endpoint is the custom endpoint to use to authenticate.
+	Endpoint *string `yaml:"endpoint"`
+
+	// Region is a S3 region to use.
+	Region string `yaml:"region"`
+
+	// Bucket is the bucket to use.
+	Bucket string `yaml:"bucket"`
+}
+
+func NewS3StorageProvider(config *S3StorageConfig) BaseStorageProvider {
+	return S3StorageProvider{
+		Config: config,
+	}
+}
+
+func (s3 S3StorageProvider) Init() error {
+	log.Info(context.Background(), "Creating S3 client...")
+
+	// Check if we can load credentials from ~/.aws
+	//var cfg aws.Config
+	//if cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(s3.Config.Region)); err != nil {
+	//	log.Warn(context.Background(), "Credentials not present in ~/.aws directory, checking from configuration...")
+	//
+	//	if s3.Config.AccessKey == nil || s3.Config.SecretKey == nil {
+	//		return errors.New("missing 'storage.s3.access_key' or 'storage.s3.secret_key' values in config.yml")
+	//	}
+	//
+	//	accessKey, secretKey := *s3.Config.AccessKey, *s3.Config.SecretKey
+	//	creds := credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")
+	//	if cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithCredentialsProvider(creds), config.WithRegion(s3.Config.Region)); err != nil {
+	//		return err
+	//	}
+	//}
+
+	return nil
+}
+
+func (s3 S3StorageProvider) Name() string {
+	return "s3"
+}
+
+func (s3 S3StorageProvider) GetMetadata(id string, project string) *ProjectMetadata {
+	return nil
+}
+
+func (s3 S3StorageProvider) HandleUpload() {
+	// TODO: this
+}

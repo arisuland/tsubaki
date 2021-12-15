@@ -15,3 +15,46 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package routers
+
+import (
+	"arisu.land/tsubaki/graphql"
+	"arisu.land/tsubaki/infra"
+	"arisu.land/tsubaki/middleware"
+	"arisu.land/tsubaki/util"
+	"fmt"
+	"github.com/go-chi/chi/v5"
+	"html/template"
+	"net/http"
+)
+
+func NewGraphQLRouter(container *infra.Container, gql *graphql.Manager) chi.Router {
+	router := chi.NewRouter()
+
+	router.Use(middleware.LogMiddleware)
+	router.Post("/", gql.ServeHTTP)
+	router.Get("/", func(w http.ResponseWriter, req *http.Request) {
+		if container.Config.Environment == "development" {
+			t := template.New("graphql-playground")
+			t, err := t.Parse(util.PlaygroundTemplate)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+			}
+
+			data := util.PlaygroundTemplateData{
+				Endpoint: fmt.Sprintf("http://localhost:%d/graphql", container.Config.Port),
+			}
+
+			if err := t.ExecuteTemplate(w, "index", data); err != nil {
+				http.Error(w, err.Error(), 500)
+			}
+
+			return
+		}
+
+		util.WriteJson(w, 405, struct{ Message string }{
+			Message: "You can only use the GraphQL API via POST /graphql only.",
+		})
+	})
+
+	return router
+}

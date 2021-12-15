@@ -2,27 +2,53 @@ VERSION=$(shell cat version.json | jq .version | tr -d '"')
 GIT_COMMIT=$(shell git rev-parse --short HEAD)
 BUILD_DATE=$(shell date +"%D - %r")
 
+HOME_OS ?= $(shell go env GOOS)
+ifeq ($(HOME_OS),linux)
+	TARGET_OS ?= linux
+else ifeq ($(HOME_OS),darwin)
+	TARGET_OS ?= darwin
+else ifeq ($(HOME_OS),windows)
+	TARGET_OS ?= windows
+else
+	$(error System $(LOCAL_OS) is not supported.)
+endif
+
+ifeq ($(HOME_OS),windows)
+	TARGET_FILE ?= ./build/tsubaki.exe
+else
+	TARGET_FILE ?= ./build/tsubaki
+endif
+
 # Usage: `make build`
 build:
-	@echo "Building Tsubaki..."
-	go build -ldflags "-s -w -X main.version=${VERSION} -X main.commitHash=${GIT_COMMIT}" -o ./build/tsubaki
-	@echo "Successfully built Tsubaki! Use './build/tsubaki -c config.yml' to run!"
+	@echo Building Tsubaki...
+	go build -ldflags "-s -w -X main.version=${VERSION} -X main.commitHash=${GIT_COMMIT}" -o $(TARGET_FILE)
+	@echo Successfully built Tsubaki! Use '$(TARGET_FILE) -c config.yml' to run!
 
 # Usage: `make build.docker`
 build.docker:
-	@echo "Building Tsubaki Docker image..."
+	@echo Building Tsubaki Docker image...
 	docker build . -t "arisuland/tsubaki:latest" --no-cache --build-arg VERSION=${VERSION} --build-arg COMMIT_HASH=${GIT_COMMIT} --build-arg BUILD_DATE=${BUILD_DATE}
 	docker build . -t "arisuland/tsubaki:${VERSION}" --no-cache
-	@echo "Done building images for latest and ${VERSION} tags!"
+	@echo Done building images for latest and ${VERSION} tags!
 
 # Usage: `make fmt`
 fmt:
 	go fmt
 
+# Usage: `make clean`
+clean:
+	go clean
+
 # Usage: `make db.migrate NAME=<string>`
 db.migrate:
-	@echo "Migrating development database..."
+	@echo Migrating development database...
 	go run github.com/prisma/prisma-client-go migrate dev --name=$(NAME)
+
+# Usage: `make db.fmt`
+db.fmt:
+	@echo Formatting .prisma files...
+	go run github.com/prisma/prisma-client-go format
 
 # Usage: `make codegen`
 codegen:

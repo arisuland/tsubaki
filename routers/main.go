@@ -15,3 +15,34 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package routers
+
+import (
+	"arisu.land/tsubaki/infra"
+	"arisu.land/tsubaki/middleware"
+	"arisu.land/tsubaki/util"
+	"github.com/go-chi/chi/v5"
+	"net/http"
+)
+
+type GenericResponse struct {
+	Hello    string
+	DocsUrl  string
+	SiteIcon string
+	SiteName string
+}
+
+func NewMainRouter(container *infra.Container) chi.Router {
+	router := chi.NewRouter()
+
+	router.Use(middleware.LogMiddleware)
+	router.Get("/", func(w http.ResponseWriter, req *http.Request) {
+		util.WriteJson(w, 200, GenericResponse{
+			Hello:    "world",
+			DocsUrl:  "https://docs.arisu.land/graphql",
+			SiteName: container.Config.SiteName,
+			SiteIcon: container.Config.SiteIcon,
+		})
+	})
+
+	return router
+}

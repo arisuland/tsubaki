@@ -14,8 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package resolvers
+package util
 
-func (r *Resolver) Hello() string {
-	return "hello!"
+// Keys returns a []string of all the keys found in the given map.
+func Keys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
+
+// Find performs an operation to iterate all the Keys in a given map
+// and return the value as `interface{}`, if the key isn't found, it will
+// return `nil`.
+func Find(m map[string]interface{}, key string) *interface{} {
+	keys := Keys(m)
+	for _, k := range keys {
+		if k == key {
+			val := m[k]
+			return &val
+		}
+	}
+
+	return nil
 }

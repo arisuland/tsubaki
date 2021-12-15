@@ -1,0 +1,47 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "go run github.com/prisma/prisma-client-go"
+}
+
+model User {
+  accessTokens AccessToken[]
+  description  String?
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  username     String        @unique
+  disabled     Boolean       @default(false)
+  projects     Project[]
+  password     String
+  flags        Int           @default(0)
+  email        String
+  name         String?
+  id           String        @id
+
+  @@map("users")
+}
+
+model Project {
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  ownerId     String   @map("owner_id")
+  owner       User     @relation(fields: [ownerId], references: [id])
+  flags       Int      @default(0)
+  name        String
+  id          String   @id
+
+  @@map("projects")
+}
+
+model AccessToken {
+  ownerId String @unique @map("owner_id")
+  owner   User   @relation(fields: [ownerId], references: [id])
+  token   String
+  id      String @id
+
+  @@map("access_tokens")
+}

@@ -18,5 +18,5 @@
 # Most of the queries do not require authentication.
 type Query {
     # A test query to see if the connection is working.
-    test: String!
+    hello: String!
 }

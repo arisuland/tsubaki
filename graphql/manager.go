@@ -17,6 +17,8 @@
 package graphql
 
 import (
+	"arisu.land/tsubaki/graphql/resolvers"
+	"arisu.land/tsubaki/infra"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
@@ -29,6 +31,9 @@ import (
 
 // Manager is the main manager for executing GraphQL queries/mutations/subscriptions.
 type Manager struct {
+	// Container is the container initialized from main.go
+	Container *infra.Container
+
 	// Schema is the GraphQL schema generated from the codegen binary.
 	Schema *graphql.Schema
 
@@ -44,10 +49,11 @@ type RequestBody struct {
 }
 
 // NewGraphQLManager creates a new *Manager instance.
-func NewGraphQLManager() *Manager {
+func NewGraphQLManager(container *infra.Container) *Manager {
 	return &Manager{
-		Logger: slog.Make(sloghuman.Sink(os.Stdout)),
-		Schema: nil,
+		Container: container,
+		Logger:    slog.Make(sloghuman.Sink(os.Stdout)),
+		Schema:    nil,
 	}
 }
 
@@ -62,7 +68,9 @@ func (m *Manager) GenerateSchema() error {
 
 	opts := []graphql.SchemaOpt{graphql.UseFieldResolvers()}
 	content := string(contents)
-	schema := graphql.MustParseSchema(content, &Resolver{}, opts...)
+	schema := graphql.MustParseSchema(content, &resolvers.Resolver{
+		Container: m.Container,
+	}, opts...)
 
 	m.Logger.Info(context.Background(), "Generated successfully. :3")
 	m.Schema = schema

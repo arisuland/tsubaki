@@ -26,6 +26,8 @@ type BaseStorageProvider interface {
 	// embedded under `id/project/metadata.json`.
 	GetMetadata(id string, project string) *ProjectMetadata
 
+	Init() error
+
 	// Name returns the name of this BaseStorageProvider.
 	Name() string
 }
@@ -76,5 +78,6 @@ type Config struct {
 	// must create a volume so Arisu can interact with it.
 	//
 	// Aliases: `fs` | Prefix: TSUBAKI_STORAGE_FS_*
-	Filesystem FilesystemStorageConfig `json:"filesystem" json:"fs"`
+	Filesystem *FilesystemStorageConfig `yaml:"fs"`
+	S3         *S3StorageConfig         `yaml:"s3"`
 }

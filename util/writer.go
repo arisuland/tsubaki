@@ -14,8 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package resolvers
+package util
 
-func (r *Resolver) Hello() string {
-	return "hello!"
+import (
+	"encoding/json"
+	"net/http"
+)
+
+// WriteJson is a simple utility function to write data into JSON.
+func WriteJson(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		return
+	}
 }
