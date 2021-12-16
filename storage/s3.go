@@ -68,24 +68,38 @@ func NewS3StorageProvider(config *S3StorageConfig) BaseStorageProvider {
 	}
 }
 
+func isValidProvider(provider string) bool {
+	allProviders := []string{"wasabi", "custom", "amazon"}
+	for _, p := range allProviders {
+		if provider == p {
+			return true
+		}
+	}
+
+	return false
+}
+
+//func get
+
 func (s3 S3StorageProvider) Init() error {
 	log.Info(context.Background(), "Creating S3 client...")
 
-	// Check if we can load credentials from ~/.aws
 	//var cfg aws.Config
-	//if cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(s3.Config.Region)); err != nil {
-	//	log.Warn(context.Background(), "Credentials not present in ~/.aws directory, checking from configuration...")
-	//
+	//if c, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(s3.Config.Region)); err != nil {
+	//	log.Warn(context.Background(), "Credentials is not present in ~/.aws directory, checking from config.yml / environment vars...")
 	//	if s3.Config.AccessKey == nil || s3.Config.SecretKey == nil {
 	//		return errors.New("missing 'storage.s3.access_key' or 'storage.s3.secret_key' values in config.yml")
 	//	}
 	//
 	//	accessKey, secretKey := *s3.Config.AccessKey, *s3.Config.SecretKey
 	//	creds := credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")
-	//	if cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithCredentialsProvider(creds), config.WithRegion(s3.Config.Region)); err != nil {
+	//	if c, err = config.LoadDefaultConfig(context.TODO(), config.WithCredentialsProvider(creds), config.WithRegion(s3.Config.Region)); err != nil {
 	//		return err
 	//	}
 	//}
+
+	log.Info(context.Background(), "Creating S3 session...")
+	//session, err := session.NewSession()
 
 	return nil
 }

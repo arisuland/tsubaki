@@ -16,10 +16,24 @@
 
 package resolvers
 
-import "arisu.land/tsubaki/infra"
+import (
+	"arisu.land/tsubaki/controllers"
+	"arisu.land/tsubaki/infra"
+)
 
 // Resolver represents the main resolver tree to use in our GraphQL schema.
 type Resolver struct {
 	// Container is the main container that holds everything in.
 	Container *infra.Container
+
+	// Users is the controller for handling user metadata.
+	Users controllers.UserController
+}
+
+// NewResolver creates a new Resolver instance.
+func NewResolver(container *infra.Container) *Resolver {
+	return &Resolver{
+		Container: container,
+		Users:     controllers.NewUserController(container.Database, container.Snowflake),
+	}
 }

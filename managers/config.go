@@ -19,6 +19,7 @@ package managers
 import (
 	"arisu.land/tsubaki/kafka"
 	"arisu.land/tsubaki/storage"
+	"arisu.land/tsubaki/util"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
@@ -69,6 +70,16 @@ type Config struct {
 	//
 	// Default: false | Env Variable: TSUBAKI_ENABLE_TELEMETRY
 	TelemetryEnabled bool `yaml:"telemetry"`
+
+	// SecretKeyBase is the string for hashing JWT tokens. If this is not populated,
+	// you can run the `tsubaki generate` command OR have the app create it for you
+	// but it will not write to the config file to loosen I/O computation.
+	//
+	// If you're using Kubernetes, it is best assured that you should use this as a Secret
+	// object and use the environment variable to load it in.
+	//
+	// Default: "<auto-gen>" | Env Variable: TSUBAKI_SECRET_KEY_BASE
+	SecretKeyBase string `yaml:"secret_key_base"`
 
 	// If this Tsubaki instance should be invite only, in which,
 	// if Registrations is disabled, this is also disabled.
@@ -208,6 +219,27 @@ func loadConfig() (*Config, error) {
 
 	if config.SiteIcon == "" {
 		config.SiteIcon = "https://cdn.arisu.land/lotus.png"
+	}
+
+	// Check if the environment variable exists for secret key base
+	if os.Getenv("TSUBAKI_SECRET_KEY_BASE") != "" && config.SecretKeyBase == "" {
+		config.SecretKeyBase = os.Getenv("TSUBAKI_SECRET_KEY_BASE")
+	}
+
+	// Check if it is empty
+	if config.SecretKeyBase == "" {
+		randomHash := util.GenerateHash(32)
+		if randomHash == "" {
+			return nil, errors.New("unable to generate secret key base :<")
+		}
+
+		log.Warn(
+			context.Background(),
+			"It is recommended to store your newly generated secret key base for JWT authentication, since after a restart, it will fail to verify JWT sessions.\nSave this in your config.yml file:",
+			slog.F("secret_key_base", randomHash),
+		)
+
+		config.SecretKeyBase = randomHash
 	}
 
 	return &config, nil

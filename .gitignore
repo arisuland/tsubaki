@@ -510,4 +510,5 @@ FodyWeavers.xsd
 # Additional files
 config.yml
 build/
+data/
 .env

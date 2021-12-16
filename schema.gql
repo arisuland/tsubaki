@@ -19,4 +19,85 @@
 type Query {
     # A test query to see if the connection is working.
     hello: String!
+
+    # Retrieve a user from the database
+    #
+    # @param id ~ The user's ID to retrieve from
+    # @return [User?] ~ Returns the user's metadata excluding
+    # masked information (password, email) or `null` if nothing
+    # was found.
+    user(id: String!): User
+}
+
+# Mutations are a way to modify any Tsubaki object, but most mutations require
+# authentication. Read more about authentication on our documentation:
+# https://docs.arisu.land/graphql#authentication
+type Mutation {
+    # Creates a new user and returns a [User] object.
+    #
+    # @param email ~ The email to register the user as
+    # @param password ~ The password to use when registering
+    # @param username ~ The unique username
+    # @returns [User?] ~ Returns a new [User] object or `nil` if any
+    # errors occur.
+    createUser(email: String!, password: String!, username: String!): User
+}
+
+# Represents a user account.
+type User {
+    # The user's description that is embedded on the site. Tells a bit
+    # about themself.
+    description: String
+
+    # Returns a DateTime on when the user has updated their account.
+    updatedAt:   String!
+
+    # Returns a DateTime on when the user has created their account.
+    createdAt:   String!
+
+    # Returns a list of projects created by the user.
+    projects:    [Project!]!
+
+    # The user's unique username.
+    username:    String!
+
+    # If this user has been disabled by a moderator, administrator,
+    # or they disabled it on their own. You can check for the last one
+    # with the UserFlags.DISABLED flag in User.flags
+    disabled:    Boolean!
+
+    # Returns the flags of a User, this can represent their permissions
+    # globally from Arisu.
+    flags:       Int!
+
+    # The user's name that is embedded on the site.
+    name:        String
+
+    # Snowflake of when this User was generated in.
+    id:          String!
+}
+
+# Represents a user or organization project.
+type Project {
+    # The project's description that is embedded on the site.
+    description: String
+
+    # Returns a ISO-8601 formatted date on when the user has updated their account.
+    updatedAt:   String!
+
+    # Returns a ISO-8601 formatted date on when the user has created their account.
+    createdAt:   String!
+
+    # The owner of this project.
+    owner:       User!
+
+    # Returns the flags of a Project, this can represent their permissions
+    # globally from Arisu.
+    flags:       Int!
+
+    # The name of the project.
+    name:        String!
+
+    # Snowflake of when this User was generated in.
+    id:          String!
 }

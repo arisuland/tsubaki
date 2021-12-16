@@ -68,9 +68,7 @@ func (m *Manager) GenerateSchema() error {
 
 	opts := []graphql.SchemaOpt{graphql.UseFieldResolvers()}
 	content := string(contents)
-	schema := graphql.MustParseSchema(content, &resolvers.Resolver{
-		Container: m.Container,
-	}, opts...)
+	schema := graphql.MustParseSchema(content, resolvers.NewResolver(m.Container), opts...)
 
 	m.Logger.Info(context.Background(), "Generated successfully. :3")
 	m.Schema = schema

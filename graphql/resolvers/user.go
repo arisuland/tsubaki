@@ -14,33 +14,39 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package managers
+package resolvers
 
 import (
-	"github.com/bwmarrin/snowflake"
+	"arisu.land/tsubaki/graphql/types"
+	"context"
 )
 
-// SnowflakeManager represents generating snowflakes.
-type SnowflakeManager struct {
-	Node *snowflake.Node
-}
-
-func NewSnowflakeManager() (*SnowflakeManager, error) {
-	// Change the epoch to Jan 2022 (since by default, it'll use Twitter's epoch)
-	snowflake.Epoch = int64(1641020400000)
-
-	// TODO: set this as an env variable
-	node, err := snowflake.NewNode(1)
+// User retrieves a user from the database based off its ID.
+func (r *Resolver) User(ctx context.Context, args struct{ ID string }) (*types.User, error) {
+	user, err := r.Users.GetUser(ctx, args.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &SnowflakeManager{
-		Node: node,
-	}, nil
+	if user == nil {
+		return nil, nil
+	}
+
+	return types.FromUserModel(user), nil
 }
 
-func (m *SnowflakeManager) Generate() string {
-	flake := m.Node.Generate()
-	return flake.String()
+func (r *Resolver) CreateUser(
+	ctx context.Context,
+	args struct {
+	Email    string
+	Password string
+	Username string
+},
+) (*types.User, error) {
+	user, err := r.Users.CreateUser(ctx, args.Email, args.Password, args.Username)
+	if err != nil {
+		return nil, err
+	}
+
+	return types.FromUserModel(user), nil
 }
