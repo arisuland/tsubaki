@@ -15,3 +15,22 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package routers
+
+import (
+	"arisu.land/tsubaki/pkg/util"
+	"github.com/go-chi/chi/v5"
+	"net/http"
+)
+
+func NewHealthRouter() chi.Router {
+	router := chi.NewRouter()
+	router.Get("/", func(w http.ResponseWriter, req *http.Request) {
+		util.WriteJson(w, 200, struct {
+			Status string `json:"status"`
+		}{
+			Status: "available",
+		})
+	})
+
+	return router
+}

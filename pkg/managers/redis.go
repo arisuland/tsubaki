@@ -134,3 +134,14 @@ func (m *RedisManager) Connect() error {
 
 	return nil
 }
+
+// Ping returns the ping of the Redis server.
+func (m *RedisManager) Ping() int64 {
+	t := time.Now()
+
+	if err := m.Connection.Ping(context.TODO()).Err(); err != nil {
+		return -1
+	} else {
+		return time.Since(t).Milliseconds()
+	}
+}

@@ -17,8 +17,8 @@
 package middleware
 
 import (
-	"arisu.land/tsubaki/managers"
-	"arisu.land/tsubaki/util"
+	"arisu.land/tsubaki/pkg/managers"
+	"arisu.land/tsubaki/pkg/util"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
 	"fmt"

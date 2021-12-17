@@ -18,7 +18,7 @@ package resolvers
 
 import (
 	"arisu.land/tsubaki/controllers"
-	"arisu.land/tsubaki/infra"
+	"arisu.land/tsubaki/pkg/infra"
 )
 
 // Resolver represents the main resolver tree to use in our GraphQL schema.

@@ -1,6 +1,6 @@
 VERSION=$(shell cat version.json | jq .version | tr -d '"')
 GIT_COMMIT=$(shell git rev-parse --short HEAD)
-BUILD_DATE=$(shell date +"%D - %r")
+BUILD_DATE=$(shell go run ./cmd/build-date/main.go)
 
 HOME_OS ?= $(shell go env GOOS)
 ifeq ($(HOME_OS),linux)
@@ -22,7 +22,7 @@ endif
 # Usage: `make build`
 build:
 	@echo Building Tsubaki...
-	go build -ldflags "-s -w -X main.version=${VERSION} -X main.commitHash=${GIT_COMMIT}" -o $(TARGET_FILE)
+	go build -ldflags "-s -w -X main.version=${VERSION} -X main.commitHash=${GIT_COMMIT} -X \"main.buildDate=${BUILD_DATE}\"" -o $(TARGET_FILE)
 	@echo Successfully built Tsubaki! Use '$(TARGET_FILE) -c config.yml' to run!
 
 # Usage: `make build.docker`
@@ -31,6 +31,11 @@ build.docker:
 	docker build . -t "arisuland/tsubaki:latest" --no-cache --build-arg VERSION=${VERSION} --build-arg COMMIT_HASH=${GIT_COMMIT} --build-arg BUILD_DATE=${BUILD_DATE}
 	docker build . -t "arisuland/tsubaki:${VERSION}" --no-cache
 	@echo Done building images for latest and ${VERSION} tags!
+
+clean:
+	@echo Cleaning build/ directories
+	rm -rf build/
+	@echo Done!
 
 # Usage: `make fmt`
 fmt:

@@ -19,6 +19,7 @@ package managers
 import (
 	"arisu.land/tsubaki/prisma/db"
 	"context"
+	"time"
 )
 
 // Prisma is a struct that manages the Prisma client
@@ -58,4 +59,17 @@ func (p Prisma) Close() error {
 
 	log.Warn(context.Background(), "Closed off the connection!")
 	return nil
+}
+
+// Ping returns the ping of the database
+// Since PostgreSQL doesn't have a native ping function, we can
+// somewhat replicate it from fetching users (since it'll probably be bigger data)
+func (p Prisma) Ping() int64 {
+	t := time.Now()
+
+	if _, err := p.Client.User.FindMany().Exec(context.TODO()); err != nil {
+		return -1
+	} else {
+		return time.Since(t).Milliseconds()
+	}
 }

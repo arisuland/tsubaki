@@ -18,7 +18,7 @@ package graphql
 
 import (
 	"arisu.land/tsubaki/graphql/resolvers"
-	"arisu.land/tsubaki/infra"
+	"arisu.land/tsubaki/pkg/infra"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
 	"context"

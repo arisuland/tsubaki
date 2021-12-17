@@ -32,6 +32,9 @@ var (
 
 	// Amazon is the Provider to use Amazon S3, the URI will return nil
 	Amazon Provider = "amazon"
+
+	// Empty is a invalid provider.
+	Empty Provider = "empty"
 )
 
 // S3StorageProvider is a provider for using S3 for hosting your images.
@@ -79,7 +82,26 @@ func isValidProvider(provider string) bool {
 	return false
 }
 
-//func get
+func FromProvider(provider string) Provider {
+	if !isValidProvider(provider) {
+		return Empty
+	}
+
+	switch provider {
+	case "wasabi":
+		return Wasabi
+
+	case "custom":
+		return Custom
+
+	case "amazon":
+	default:
+		return Amazon
+	}
+
+	// we should never go here
+	return Empty
+}
 
 func (s3 S3StorageProvider) Init() error {
 	log.Info(context.Background(), "Creating S3 client...")

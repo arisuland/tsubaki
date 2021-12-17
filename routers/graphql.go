@@ -18,9 +18,9 @@ package routers
 
 import (
 	"arisu.land/tsubaki/graphql"
-	"arisu.land/tsubaki/infra"
-	"arisu.land/tsubaki/middleware"
-	"arisu.land/tsubaki/util"
+	"arisu.land/tsubaki/pkg/infra"
+	"arisu.land/tsubaki/pkg/middleware"
+	"arisu.land/tsubaki/pkg/util"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"html/template"

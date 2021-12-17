@@ -17,13 +17,14 @@
 package infra
 
 import (
-	"arisu.land/tsubaki/kafka"
-	"arisu.land/tsubaki/managers"
-	"arisu.land/tsubaki/storage"
+	"arisu.land/tsubaki/pkg/kafka"
+	"arisu.land/tsubaki/pkg/managers"
+	"arisu.land/tsubaki/pkg/storage"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
 	"errors"
+	"golang.org/x/xerrors"
 	"os"
 )
 
@@ -43,6 +44,9 @@ type Container struct {
 
 	// Storage is the base storage manager to use
 	Storage storage.BaseStorageProvider
+
+	// Sentry is the sentry manager for handling error reports to Sentry
+	Sentry managers.SentryManager
 
 	// Config is the configuration used to configure this Tsubaki instance
 	Config *managers.Config
@@ -67,12 +71,21 @@ func NewContainer() (*Container, error) {
 
 	// Create Prometheus instance
 	prom := managers.NewPrometheus()
+	prom.Register()
 
 	// Create the Prisma client and connect
 	prisma := managers.NewPrisma()
 	if err = prisma.Connect(); err != nil {
 		return nil, err
 	}
+
+	// Set user count
+	users, err := prisma.Client.User.FindMany().Exec(context.TODO())
+	if err != nil {
+		return nil, err
+	}
+
+	managers.UsersCountMetric.Set(float64(len(users)))
 
 	// Create the Redis connection
 	redis := managers.NewRedisClient(config.Redis)
@@ -108,11 +121,18 @@ func NewContainer() (*Container, error) {
 		producer = kafka.NewProducer(*config.Kafka)
 	}
 
+	// Create Sentry client
+	sentry, err := managers.NewSentryManager(config)
+	if err != nil {
+		log.Error(context.Background(), "Unable to initialize Sentry client, will be noop.", slog.F("error", xerrors.Errorf("%v", err)))
+	}
+
 	return &Container{
 		Prometheus: prom,
 		Snowflake:  snowflake,
 		Database:   prisma,
 		Storage:    storageProvider,
+		Sentry:     sentry,
 		Config:     config,
 		Redis:      redis,
 		Kafka:      producer,

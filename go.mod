@@ -13,6 +13,8 @@ require (
 	github.com/graph-gophers/graphql-go v1.2.0 // indirect
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
 	github.com/joho/godotenv v1.4.0
+	github.com/kisielk/godepgraph v0.0.0-20190626013829-57a7e4a651a9 // indirect
+	github.com/meilisearch/meilisearch-go v0.17.0 // indirect
 	github.com/prisma/prisma-client-go v0.12.2
 	github.com/prometheus/client_golang v1.11.0
 	github.com/segmentio/kafka-go v0.4.25

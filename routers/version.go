@@ -14,4 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package managers
+package routers
+
+import (
+	"arisu.land/tsubaki/pkg"
+	"arisu.land/tsubaki/pkg/util"
+	"github.com/go-chi/chi/v5"
+	"net/http"
+)
+
+type versionResponse struct {
+	CommitHash string `json:"commit_hash"`
+	Version    string `json:"version"`
+}
+
+func NewVersionRouter() chi.Router {
+	router := chi.NewRouter()
+	router.Get("/", func(w http.ResponseWriter, req *http.Request) {
+		util.WriteJson(w, 200, versionResponse{
+			CommitHash: pkg.CommitHash,
+			Version:    pkg.Version,
+		})
+	})
+
+	return router
+}

@@ -2,7 +2,11 @@ package main
 
 import (
 	"arisu.land/tsubaki/graphql"
-	"arisu.land/tsubaki/infra"
+	"arisu.land/tsubaki/pkg"
+	"arisu.land/tsubaki/pkg/infra"
+	"arisu.land/tsubaki/pkg/is"
+	"arisu.land/tsubaki/pkg/middleware"
+	"arisu.land/tsubaki/pkg/util"
 	"arisu.land/tsubaki/routers"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
@@ -20,15 +24,28 @@ import (
 var (
 	version    string
 	commitHash string
+	buildDate  string
 	log        = slog.Make(sloghuman.Sink(os.Stdout))
 )
 
 func init() {
-	log.Info(context.Background(), fmt.Sprintf("Using v%s of Tsubaki (commit: %s)", version, commitHash))
+	// bit of warnings for now x3
+	if is.Root() {
+		log.Warn(context.Background(), "It is not recommended to run Tsubaki with `sudo` or under root.")
+	}
+
+	if is.Docker() {
+		log.Warn(context.Background(), "Make sure to backup your projects (if using filesystem storage) under a volume!")
+	}
+
+	if is.Kubernetes() {
+		log.Warn(context.Background(), "Make sure to backup your projects under a PVC!")
+	}
 }
 
 func main() {
-	log.Info(context.Background(), "Starting Tsubaki...")
+	pkg.SetVersion(version, commitHash, buildDate)
+	util.PrintBanner(version, commitHash, buildDate)
 
 	container, err := infra.NewContainer()
 	if err != nil {
@@ -49,9 +66,15 @@ func main() {
 	}
 
 	log.Info(context.Background(), "Starting up GraphQL server...")
+
 	router := chi.NewRouter()
+	router.Use(middleware.LogMiddleware)
+	router.Use(middleware.NewErrorHandler(container).Serve)
 	router.Mount("/", routers.NewMainRouter(container))
+	router.Mount("/health", routers.NewHealthRouter())
 	router.Mount("/graphql", routers.NewGraphQLRouter(container, gql))
+	router.Mount("/metrics", routers.NewMetricsRouter())
+	router.Mount("/version", routers.NewVersionRouter())
 
 	addr := fmt.Sprintf("%s:%d", container.Config.Host, container.Config.Port)
 	server := &http.Server{

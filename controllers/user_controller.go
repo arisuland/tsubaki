@@ -17,9 +17,9 @@
 package controllers
 
 import (
-	"arisu.land/tsubaki/managers"
+	"arisu.land/tsubaki/pkg/managers"
+	"arisu.land/tsubaki/pkg/util"
 	"arisu.land/tsubaki/prisma/db"
-	"arisu.land/tsubaki/util"
 	"context"
 	"errors"
 	"fmt"

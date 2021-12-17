@@ -17,9 +17,9 @@
 package managers
 
 import (
-	"arisu.land/tsubaki/kafka"
-	"arisu.land/tsubaki/storage"
-	"arisu.land/tsubaki/util"
+	"arisu.land/tsubaki/pkg/kafka"
+	"arisu.land/tsubaki/pkg/storage"
+	"arisu.land/tsubaki/pkg/util"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
@@ -328,7 +328,10 @@ func loadFromEnvironment() (*Config, error) {
 		return nil, err
 	}
 
-	storageConfig := getStorageConfig()
+	storageConfig, err := getStorageConfig()
+	if err != nil {
+		return nil, err
+	}
 
 	return &Config{
 		TelemetryEnabled: telemetryEnabled,
@@ -431,18 +434,42 @@ func getRedisConfig() (*RedisConfig, error) {
 	}, nil
 }
 
-func getStorageConfig() storage.Config {
+func getStorageConfig() (storage.Config, error) {
 	// Check if the directory env variable exists
 	if os.Getenv("TSUBAKI_STORAGE_FS_DIRECTORY") != "" {
 		return storage.Config{
 			Filesystem: &storage.FilesystemStorageConfig{
 				Directory: fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_FS_DIRECTORY"), "./.arisu"),
 			},
-		}
+		}, nil
 	}
 
 	// Check if any S3 keys exist
 	// aka this is going to be messy real quick
+	if checkIfS3EnvExists() {
+		secretKey := fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_S3_SECRET_KEY"), "")
+		accessKey := fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_S3_ACCESS_KEY"), "")
+		endpoint := fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_S3_ENDPOINT"), "")
 
-	return storage.Config{}
+		return storage.Config{
+			S3: &storage.S3StorageConfig{
+				SecretKey: &secretKey,
+				AccessKey: &accessKey,
+				Provider:  storage.FromProvider(fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_S3_SECRET_KEY"), "")),
+				Endpoint:  &endpoint,
+				Region:    os.Getenv("TSUBAKI_STORAGE_S3_REGION"),
+				Bucket:    fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_S3_BUCKET"), "tsubaki"),
+			},
+		}, nil
+	}
+
+	return storage.Config{}, errors.New("missing storage provider, read more here: https://docs.arisu.land/selfhosting/storage")
+}
+
+func checkIfS3EnvExists() bool {
+	prefix := "TSUBAKI_STORAGE_S3_"
+	provider := os.Getenv(prefix + "PROVIDER")
+	region := os.Getenv(prefix + "REGION")
+
+	return provider != "" && region != ""
 }

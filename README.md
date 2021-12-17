@@ -56,6 +56,7 @@ You have four options to run Tsubaki:
 Before running your own instance of Arisu, you are required to have:
 
 - [**PostgreSQL**](https://postgresql.org)
+- [**Meilisearch**](https://meilisearch.com)
 - [**Redis**](https://redis.io)
 - [**Go**](https://golang.org)
 - 1GB of RAM higher on your system
@@ -123,14 +124,6 @@ registrations: Boolean
 # Default: nil
 # Variable: TSUBAKI_SENTRY_DSN
 sentry_dsn: String?
-
-# If Tsubaki should send telemetry events to Arisu, read up on what we do
-# before enabling: https://docs.arisu.land/telemetry
-#
-# Type: Boolean
-# Default: false
-# Variable: TSUBAKI_ENABLE_TELEMETRY
-telemetry: Boolean
 
 # Returns the site-name to embed on the navbar of your Fubuki instance.
 #
@@ -340,6 +333,18 @@ redis:
   # Variable: TSUBAKI_REDIS_PORT
   port: Int
 ```
+
+## Frequently Asked Questions
+### Q. Why is Meilisearch a required service to run?
+> Since it's for indexing project and user names to use for the search bar, this will be under the [search](https://docs.arisu.land/graphql/queries#search)
+query which is ***not authenticated*** but API requests have a ratelimiter!
+
+### Q. Why Kafka over ...
+> Because Kafka will be more stabilized when using multiple Kafka brokers rather than <insert service here>. :3
+
+### Q. Why Go over ...?
+> Personally, I really like Go for creating backend applications. I could've used Rust but there was no libraries for my use case
+> that I could find (e.g. having Sentinel support for any Redis libraries)
 
 ## License
 **Tsubaki** is released under the **GPL-3.0** License by Noelware. If you wish to view the whole license, read the [LICENSE](/LICENSE) file.

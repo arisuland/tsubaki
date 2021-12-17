@@ -17,7 +17,7 @@
 package storage
 
 import (
-	"arisu.land/tsubaki/util"
+	"arisu.land/tsubaki/pkg/util"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
 	"context"

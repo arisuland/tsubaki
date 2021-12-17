@@ -17,24 +17,21 @@
 package routers
 
 import (
-	"arisu.land/tsubaki/infra"
-	"arisu.land/tsubaki/middleware"
-	"arisu.land/tsubaki/util"
+	"arisu.land/tsubaki/pkg/infra"
+	"arisu.land/tsubaki/pkg/util"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 )
 
 type GenericResponse struct {
-	Hello    string
-	DocsUrl  string
-	SiteIcon string
-	SiteName string
+	Hello    string `json:"hello"`
+	DocsUrl  string `json:"docs_url"`
+	SiteIcon string `json:"site_icon"`
+	SiteName string `json:"site_name"`
 }
 
 func NewMainRouter(container *infra.Container) chi.Router {
 	router := chi.NewRouter()
-
-	router.Use(middleware.LogMiddleware)
 	router.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		util.WriteJson(w, 200, GenericResponse{
 			Hello:    "world",
