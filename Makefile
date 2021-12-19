@@ -15,8 +15,10 @@ endif
 
 ifeq ($(HOME_OS),windows)
 	TARGET_FILE ?= ./build/tsubaki.exe
+	TARGET_FILE_DOCGEN ?= ./main
 else
 	TARGET_FILE ?= ./build/tsubaki
+	TARGET_FILE_CODEGEN ?= ./main
 endif
 
 # Usage: `make build`
@@ -57,12 +59,7 @@ db.generate:
 	@echo Generating Prisma artifacts...
 	go run github.com/prisma/prisma-client-go generate
 
-# Usage: `make codegen`
-codegen:
-	go build cmd/codegen -ldflags "-s -w" -o ./build/codegen
-	./build/codegen
-
 # Usage: `make docgen`
 docgen:
-	go build cmd/docgen -ldflags "-s -w" -o ./build/docgen
-	./build/docgen
+	go build cmd/docgen/main.go
+	$(TARGET_FILE_DOCGEN)

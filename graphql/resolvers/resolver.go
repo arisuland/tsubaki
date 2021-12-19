@@ -32,6 +32,11 @@ type Resolver struct {
 
 // NewResolver creates a new Resolver instance.
 func NewResolver(container *infra.Container) *Resolver {
+	// This is usually for the documentation generator
+	if container == nil {
+		return &Resolver{}
+	}
+
 	return &Resolver{
 		Container: container,
 		Users:     controllers.NewUserController(container.Database, container.Snowflake),

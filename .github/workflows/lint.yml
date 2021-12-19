@@ -1,0 +1,78 @@
+name: Lint on Commit
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'bug/gh-**'
+      - 'issue/gh-**'
+      - staging
+      - master
+        
+    paths-ignore:
+      - '.github/**'
+      - '.vscode/**'
+      - 'assets/**'
+      - 'docker/**'
+      - '.idea/**'
+      - '.dockerignore'
+      - '.gitignore'
+      - '**.md'
+      - 'LICENSE'
+      - 'renovate.json'
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: arisu
+          POSTGRES_PASSWORD: owowhatsthis
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - '5432:5432'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        
+      - name: Setup Go 1.17
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Setup Prisma schema
+        run: |
+          echo "DATABASE_URL=postgresql://arisu:owowhatsthis@localhost:5432/tsubaki?schema=arisu" >> ~/.env
+          make db.generate
+          
+      - name: Install dependencies
+        run: go mod download && go get
+
+      - name: Build project to see if it compiles
+        run: make build
+         
+      - name: Format project for any formatting to apply
+        run: make fmt
+         
+      - name: Check if git status is dirty
+        id: git_status
+        run: |
+         if [ -n "$(git status --porcelain)" ]; then
+             echo '::set-output name=STATUS_DIRTY::true'
+         else
+           echo '::set-output name=STATUS_DIRTY::false'
+         fi
+           
+      - name: Commit changes (if dirty)
+        if: contains(steps.git_status.outputs.STATUS_DIRTY, 'true')
+        run: |
+           git config --global user.name "Noel[bot]"
+           git config --global user.email "ohlookitsaugust@gmail.com"
+         
+           git add .
+           git commit -m "chore: run \`go fmt\`"
+           git push -u origin master
