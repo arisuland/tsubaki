@@ -14,16 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package pkg
+package util
 
-var (
-	Version    string
-	CommitHash string
-	BuildDate  string
-)
+import "time"
 
-func SetVersion(version string, commitHash string, buildDate string) {
-	Version = version
-	CommitHash = commitHash
-	BuildDate = buildDate
+// SetInterval creates a new timer to run code in a goroutine
+// based off this Stackoverflow thread: https://stackoverflow.com/a/16466581
+func SetInterval(run func(), t time.Duration) chan struct{} {
+	ticker := time.NewTicker(t)
+	quit := make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				run()
+
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
+	return quit
 }

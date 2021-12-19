@@ -7,6 +7,7 @@ import (
 	"arisu.land/tsubaki/pkg/is"
 	"arisu.land/tsubaki/pkg/middleware"
 	"arisu.land/tsubaki/pkg/ratelimiter"
+	"arisu.land/tsubaki/pkg/sessions"
 	"arisu.land/tsubaki/pkg/util"
 	"arisu.land/tsubaki/routers"
 	"arisu.land/tsubaki/routers/integrations"
@@ -71,10 +72,12 @@ func main() {
 
 	rl := ratelimiter.NewRatelimiter(container.Redis)
 	router := chi.NewRouter()
+	sessions.NewSessionManager(container.Redis, container.Database)
 
 	router.Use(rl.Middleware)
 	router.Use(middleware.Headers)
 	router.Use(middleware.LogMiddleware)
+	router.Use(sessions.Sessions.Middleware)
 	router.Use(middleware.NewErrorHandler(container).Serve)
 	router.Mount("/", routers.NewMainRouter(container))
 	router.Mount("/health", routers.NewHealthRouter())

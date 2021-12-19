@@ -61,5 +61,4 @@ db.generate:
 
 # Usage: `make docgen`
 docgen:
-	go build cmd/docgen/main.go
-	$(TARGET_FILE_DOCGEN)
+	go run $(TARGET_FILE_DOCGEN)

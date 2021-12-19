@@ -85,8 +85,7 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := context.WithValue(r.Context(), "token", r.Header.Get("Authorization"))
-	result := m.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
+	result := m.Schema.Exec(r.Context(), params.Query, params.OperationName, params.Variables)
 	data, err := json.Marshal(result)
 	if err != nil {
 		http.Error(w, err.Error(), 500)

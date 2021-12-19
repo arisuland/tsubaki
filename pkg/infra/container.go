@@ -30,6 +30,8 @@ import (
 
 var log = slog.Make(sloghuman.Sink(os.Stdout))
 
+var GlobalContainer *Container = nil
+
 // Container is the main core part of Tsubaki. This is a containerized
 // struct of all the core components Tsubaki needs to use.
 type Container struct {
@@ -61,6 +63,10 @@ type Container struct {
 
 // NewContainer creates a new Container instance.
 func NewContainer() (*Container, error) {
+	if GlobalContainer != nil {
+		panic("tried to init a new global container.")
+	}
+
 	log.Info(context.Background(), "Initializing container...")
 
 	// Load configuration
@@ -127,7 +133,7 @@ func NewContainer() (*Container, error) {
 		log.Error(context.Background(), "Unable to initialize Sentry client, will be noop.", slog.F("error", xerrors.Errorf("%v", err)))
 	}
 
-	return &Container{
+	GlobalContainer = &Container{
 		Prometheus: prom,
 		Snowflake:  snowflake,
 		Database:   prisma,
@@ -136,7 +142,9 @@ func NewContainer() (*Container, error) {
 		Config:     config,
 		Redis:      redis,
 		Kafka:      producer,
-	}, nil
+	}
+
+	return GlobalContainer, nil
 }
 
 // Close closes off all components and destroys data.
