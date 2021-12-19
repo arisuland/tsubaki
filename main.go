@@ -6,8 +6,10 @@ import (
 	"arisu.land/tsubaki/pkg/infra"
 	"arisu.land/tsubaki/pkg/is"
 	"arisu.land/tsubaki/pkg/middleware"
+	"arisu.land/tsubaki/pkg/ratelimiter"
 	"arisu.land/tsubaki/pkg/util"
 	"arisu.land/tsubaki/routers"
+	"arisu.land/tsubaki/routers/integrations"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
@@ -67,7 +69,11 @@ func main() {
 
 	log.Info(context.Background(), "Starting up GraphQL server...")
 
+	rl := ratelimiter.NewRatelimiter(container.Redis)
 	router := chi.NewRouter()
+
+	router.Use(rl.Middleware)
+	router.Use(middleware.Headers)
 	router.Use(middleware.LogMiddleware)
 	router.Use(middleware.NewErrorHandler(container).Serve)
 	router.Mount("/", routers.NewMainRouter(container))
@@ -75,6 +81,7 @@ func main() {
 	router.Mount("/graphql", routers.NewGraphQLRouter(container, gql))
 	router.Mount("/metrics", routers.NewMetricsRouter())
 	router.Mount("/version", routers.NewVersionRouter())
+	router.Mount("/integrations", integrations.NewIntegrationsRouter())
 
 	addr := fmt.Sprintf("%s:%d", container.Config.Host, container.Config.Port)
 	server := &http.Server{

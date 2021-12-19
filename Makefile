@@ -34,16 +34,13 @@ build.docker:
 
 clean:
 	@echo Cleaning build/ directories
+	go clean
 	rm -rf build/
 	@echo Done!
 
 # Usage: `make fmt`
 fmt:
 	go fmt
-
-# Usage: `make clean`
-clean:
-	go clean
 
 # Usage: `make db.migrate NAME=<string>`
 db.migrate:
