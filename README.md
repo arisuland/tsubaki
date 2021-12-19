@@ -38,9 +38,9 @@ The frontend repository and the GitHub bot will reside in the [main repository](
 ## Projects
 Arisu is split into multiple projects to reduce workloads.
 
-- [telemetry-server](https://github.com/arisuland/telemetry-server) - **Telemetry server to track error reports and data usage between services**
+- 🌌 [telemetry-server](https://github.com/arisuland/telemetry-server) - **Telemetry server to track error reports and data usage between services**
 - :octocat: [github-bot](https://github.com/auguwu/Arisu/tree/github-bot) - **GitHub bot to sync your translation from both parties.**
-- [fubuki](https://github.com/auguwu/Arisu/tree/web) - **Website portion of Arisu, made with React + Next.js**
+- 💝 [fubuki](https://github.com/auguwu/Arisu/tree/web) - **Website portion of Arisu, made with React + Next.js**
 - 🐳 [docs](https://github.com/arisuland/docs) - **Documentation site for Arisu.**
 - ⛴ [cli](https://github.com/arisuland/cli) - **CLI to connect your Arisu project with your machine or any CI service.**
 
