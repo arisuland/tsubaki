@@ -17,31 +17,27 @@
 package resolvers
 
 import (
-	"arisu.land/tsubaki/controllers"
-	"arisu.land/tsubaki/pkg/infra"
+	"arisu.land/tsubaki/graphql/types/result"
+	"context"
 )
 
-// Resolver represents the main resolver tree to use in our GraphQL schema.
-type Resolver struct {
-	// Container is the main container that holds everything in.
-	Container *infra.Container
-
-	login controllers.LoginController
-
-	// Users is the controller for handling user metadata.
-	Users controllers.UserController
+func (r *Resolver) Login(ctx context.Context, args struct {
+	UsernameOrEmail string
+	Password        string
+}) result.LoginResult {
+	return r.login.Login(ctx, args.UsernameOrEmail, args.Password)
 }
 
-// NewResolver creates a new Resolver instance.
-func NewResolver(container *infra.Container) *Resolver {
-	// This is usually for the documentation generator
-	if container == nil {
-		return &Resolver{}
+func (r *Resolver) Logout(ctx context.Context) bool {
+	id := ""
+	uid := ctx.Value("user_id")
+	if uid != nil {
+		id = uid.(string)
 	}
 
-	return &Resolver{
-		Container: container,
-		login:     controllers.NewLoginController(container.Database),
-		Users:     controllers.NewUserController(container.Database, container.Snowflake),
+	if id == "" {
+		return false
 	}
+
+	return r.login.Logout(id)
 }

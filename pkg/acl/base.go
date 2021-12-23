@@ -14,21 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package pkg
+package acl
 
-var (
-	Version    string
-	CommitHash string
-	BuildDate  string
-	Profiler   = false
-)
-
-func SetVersion(version string, commitHash string, buildDate string) {
-	Version = version
-	CommitHash = commitHash
-	BuildDate = buildDate
-}
-
-func EnableProfiler() {
-	Profiler = true
-}
+// BaseAcl is the base ACL structure for any Tsubaki object.
+// It provides a base set of functions and variables to help you
+// construct ACLs within your projects.
+//
+// Though, this is for advanced purposes (i.e, customizable behaviour between members,
+// doing bitwise operators, etc). If you wish to stick with switches to determine permissions
+// on members, this is not needed.
+type BaseAcl struct{}

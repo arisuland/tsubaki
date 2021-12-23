@@ -17,21 +17,12 @@
 package managers
 
 import (
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
-	"context"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
-	"net/http"
-	"os"
-	"time"
+	"github.com/sirupsen/logrus"
 )
 
 // Prometheus is the exporter for collecting metrics from Tsubaki.
-type Prometheus struct {
-	// logger is a private method of the slog.Logger to use.
-	logger slog.Logger
-}
+type Prometheus struct{}
 
 var (
 	RequestMetric = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -57,27 +48,13 @@ var (
 
 // NewPrometheus creates a new singleton of a Prometheus instance.
 func NewPrometheus() Prometheus {
-	return Prometheus{
-		logger: slog.Make(sloghuman.Sink(os.Stdout)),
-	}
+	return Prometheus{}
 }
 
 // Register registers all counters and histograms
 func (prom Prometheus) Register() {
-	prom.logger.Info(context.Background(), "Registering metrics...")
+	logrus.Info("Creating metrics...")
 	prometheus.MustRegister(RequestLatencyMetric, RequestMetric, GQLLatencyMetric, UsersCountMetric)
 
-	prom.logger.Info(context.Background(), "Registered all metrics!")
-}
-
-// Middleware is the chi middleware to observe request latency
-func (prom Prometheus) Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		start := time.Now()
-		ww := middleware.NewWrapResponseWriter(w, req.ProtoMajor)
-		next.ServeHTTP(ww, req)
-
-		RequestMetric.WithLabelValues(req.Method, req.URL.Path)
-		RequestLatencyMetric.WithLabelValues(req.Method, req.URL.Path).Observe(float64(time.Since(start).Nanoseconds() / 1000000))
-	})
+	logrus.Info("Metrics have been established.")
 }

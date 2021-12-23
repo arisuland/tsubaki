@@ -18,6 +18,8 @@ package storage
 
 import (
 	"context"
+	"github.com/prometheus/common/log"
+	"github.com/sirupsen/logrus"
 )
 
 // Provider is the S3 provider to use the endpoints from
@@ -104,7 +106,7 @@ func FromProvider(provider string) Provider {
 }
 
 func (s3 S3StorageProvider) Init() error {
-	log.Info(context.Background(), "Creating S3 client...")
+	logrus.Info("Creating S3 client...")
 
 	//var cfg aws.Config
 	//if c, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(s3.Config.Region)); err != nil {

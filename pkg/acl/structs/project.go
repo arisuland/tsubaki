@@ -14,21 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package pkg
-
-var (
-	Version    string
-	CommitHash string
-	BuildDate  string
-	Profiler   = false
-)
-
-func SetVersion(version string, commitHash string, buildDate string) {
-	Version = version
-	CommitHash = commitHash
-	BuildDate = buildDate
-}
-
-func EnableProfiler() {
-	Profiler = true
-}
+package structs

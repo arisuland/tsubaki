@@ -14,21 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package pkg
+package types
 
-var (
-	Version    string
-	CommitHash string
-	BuildDate  string
-	Profiler   = false
-)
-
-func SetVersion(version string, commitHash string, buildDate string) {
-	Version = version
-	CommitHash = commitHash
-	BuildDate = buildDate
+var Codes = map[int]string{
+	1001: "Invalid username. All usernames must be in a range of 8-16 characters.",
+	1002: "Invalid password provided.",
+	1003: "Email is already taken.",
+	1004: "Username is already taken.",
+	1005: "User is not logged in.",
+	1006: "The subproject parent ID is not equal to the parent project.",
+	1007: "Subproject is already created.",
+	1008: "Length for string was over the maximum amount of characters.",
 }
 
-func EnableProfiler() {
-	Profiler = true
+func Get(code int) (int, string) {
+	for k, v := range Codes {
+		if k == code {
+			return k, v
+		}
+	}
+
+	return 0, "<unknown>"
 }

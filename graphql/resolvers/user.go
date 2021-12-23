@@ -18,7 +18,10 @@ package resolvers
 
 import (
 	"arisu.land/tsubaki/graphql/types"
+	"arisu.land/tsubaki/graphql/types/update"
+	"arisu.land/tsubaki/pkg/sessions"
 	"context"
+	"errors"
 )
 
 // User retrieves a user from the database based off its ID.
@@ -49,4 +52,109 @@ func (r *Resolver) CreateUser(
 	}
 
 	return types.FromUserModel(user), nil
+}
+
+func (r *Resolver) UpdateUser(
+	ctx context.Context,
+	args struct {
+	Args update.UserArgs
+},
+) (bool, error) {
+	id := ""
+	uid := ctx.Value("user_id")
+	if uid != nil {
+		id = uid.(string)
+	}
+
+	if id == "" {
+		return false, errors.New("missing session or bearer token")
+	}
+
+	// get session from context
+	session := sessions.Sessions.Get(id)
+	if session == nil {
+		return false, nil
+	}
+
+	err := r.Users.UpdateUser(ctx, session.User.ID, args.Args)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (r *Resolver) DeleteUser(ctx context.Context) bool {
+	id := ""
+	uid := ctx.Value("user_id")
+	if uid != nil {
+		id = uid.(string)
+	}
+
+	if id == "" {
+		return false
+	}
+
+	// get session from context
+	session := sessions.Sessions.Get(id)
+	if session == nil {
+		return false
+	}
+
+	err := r.Users.DeleteUser(ctx, session.User.ID)
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+func (r *Resolver) ReenableUser(ctx context.Context) bool {
+	id := ""
+	uid := ctx.Value("user_id")
+	if uid != nil {
+		id = uid.(string)
+	}
+
+	if id == "" {
+		return false
+	}
+
+	// get session from context
+	session := sessions.Sessions.Get(id)
+	if session == nil {
+		return false
+	}
+
+	err := r.Users.ReenableUser(ctx, session.User.ID)
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+func (r *Resolver) DisableUser(ctx context.Context) bool {
+	id := ""
+	uid := ctx.Value("user_id")
+	if uid != nil {
+		id = uid.(string)
+	}
+
+	if id == "" {
+		return false
+	}
+
+	// get session from context
+	session := sessions.Sessions.Get(id)
+	if session == nil {
+		return false
+	}
+
+	err := r.Users.DisableUser(ctx, session.User.ID)
+	if err != nil {
+		return false
+	}
+
+	return true
 }

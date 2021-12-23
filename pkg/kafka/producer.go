@@ -17,12 +17,9 @@
 package kafka
 
 import (
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
 	"encoding/json"
 	"github.com/segmentio/kafka-go"
-	"os"
 )
 
 // Producer is the main Kafka writer to send out messages to its consumers.
@@ -32,9 +29,6 @@ type Producer struct {
 
 	// Config is the configuration passed down from NewProducer
 	Config Config
-
-	// logger is the slog.Logger instance for debugging
-	logger slog.Logger
 }
 
 // NewProducer creates a new Producer with the provided Config object.
@@ -48,7 +42,6 @@ func NewProducer(config Config) *Producer {
 	return &Producer{
 		Config: config,
 		Writer: writer,
-		logger: slog.Make(sloghuman.Sink(os.Stdout)),
 	}
 }
 

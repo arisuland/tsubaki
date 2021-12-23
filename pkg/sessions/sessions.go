@@ -20,16 +20,14 @@ import (
 	"arisu.land/tsubaki/graphql/types"
 	"arisu.land/tsubaki/pkg/managers"
 	"arisu.land/tsubaki/prisma/db"
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"golang.org/x/xerrors"
+	"github.com/sirupsen/logrus"
 	"net/http"
-	"os"
+	"strings"
 	"time"
 )
 
@@ -68,14 +66,17 @@ type Session struct {
 func NewSession(user types.User, token string) *Session {
 	// go doesn't have `days` or `weeks`, so this is a substitute for now.
 	days := 24 * time.Hour
-	weeks := 7 * days
 
 	return &Session{
-		ExpiresIn: time.Now().Add(1 * weeks),
+		ExpiresIn: time.Now().Add(2 * days),
 		Token:     token,
 		User:      user,
 		Type:      web,
 	}
+}
+
+func (s *Session) Expired() bool {
+	return s.ExpiresIn.UnixNano() < time.Now().UnixNano()
 }
 
 // Manager is the manager for handling all user sessions.
@@ -83,7 +84,6 @@ func NewSession(user types.User, token string) *Session {
 type Manager struct {
 	Sessions map[string]*Session
 	redis    *managers.RedisManager
-	log      slog.Logger
 	db       managers.Prisma
 }
 
@@ -92,32 +92,26 @@ func NewSessionManager(redis *managers.RedisManager, prisma managers.Prisma) Man
 		panic("tried to create new session manager.")
 	}
 
-	l := slog.Make(sloghuman.Sink(os.Stdout))
 	s := time.Now()
 	sessions := Manager{
 		Sessions: make(map[string]*Session),
 		redis:    redis,
-		log:      l,
 		db:       prisma,
 	}
 
 	count := redis.Connection.HLen(context.TODO(), "tsubaki:sessions").Val()
-	l.Info(context.Background(), fmt.Sprintf("Took %s to get %d sessions.", time.Since(s).String(), count))
+	logrus.Infof("Retrieved %d documents in %s", count, time.Since(s).String())
 
 	s = time.Now()
 	result, err := redis.Connection.HGetAll(context.TODO(), "tsubaki:sessions").Result()
 	if err != nil {
-		l.Warn(
-			context.Background(),
-			"Unable to retrieve sessions, they will be not cached in memory.",
-			slog.F("error", xerrors.Errorf("%v", err)),
-		)
+		logrus.Warnf("Unable to retrieve all sessions!")
 	} else {
 		for key, value := range result {
 			var session Session
 			err := json.Unmarshal([]byte(value), &session)
 			if err != nil {
-				l.Warn(context.Background(), fmt.Sprintf("Unable to decode session for user %s, skipping.", key))
+				logrus.Warnf("Unable to unmarshal packet for %s:\n%v", key, err)
 				continue
 			}
 
@@ -125,17 +119,27 @@ func NewSessionManager(redis *managers.RedisManager, prisma managers.Prisma) Man
 		}
 	}
 
-	l.Info(
-		context.Background(),
-		fmt.Sprintf(
-			"Took %s to re-implement sessions (%d/%d sessions)",
-			time.Since(s).String(),
-			len(sessions.Sessions),
-			count,
-		),
-	)
+	logrus.Infof("Took %s to re-implement all sessions (%d/%d sessions)", time.Since(s).String(), len(sessions.Sessions), count)
 
 	Sessions = &sessions
+	// Get all the expired ratelimits
+	expired := make([]string, 0)
+	for uid, value := range sessions.Sessions {
+		if value.Expired() {
+			expired = append(expired, uid)
+		}
+	}
+
+	logrus.Infof("Found %d ratelimits to expire!", len(expired))
+	for _, r := range expired {
+		err := sessions.redis.Connection.HDel(context.TODO(), "tsubaki:sessions", r).Err()
+		if err != nil {
+			logrus.Warnf("Unable to delete expired ratelimit:\n%v", err)
+		}
+
+		logrus.Infof("Deleted expired session for uid %s", r)
+	}
+
 	go sessions.resetExpired()
 	return sessions
 }
@@ -145,15 +149,10 @@ func (m Manager) resetExpired() {
 		select {
 		case <-time.After(time.Duration(value.ExpiresIn.UnixNano())):
 			{
-				m.log.Warn(context.Background(), fmt.Sprintf("Sessions for %s has expired.", id))
+				logrus.Warnf("Session for user %s has expired.", id)
 				err := m.redis.Connection.HDel(context.TODO(), "tsubaki:sessions", id).Err()
 				if err != nil {
-					m.log.Warn(
-						context.Background(),
-						fmt.Sprintf("Unable to delete session for user %s:", id),
-						slog.F("error", xerrors.Errorf("%v", err)),
-					)
-
+					logrus.Errorf("Unable to delete sesion for user %s:\n%v", id, err)
 					continue
 				}
 			}
@@ -166,26 +165,21 @@ func (m Manager) cache(uid string, session *Session) {
 	m.redis.Connection.HMSet(context.TODO(), "tsubaki:sessions", uid, string(data))
 }
 
-func (m Manager) Get(uid string, req *http.Request) *Session {
+func (m Manager) Get(uid string) *Session {
 	res, err := m.redis.Connection.HGet(context.TODO(), "tsubaki:sessions", uid).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return nil
 		}
 
-		m.log.Warn(context.Background(), fmt.Sprintf("Unable to get session from uid %s.", uid))
+		logrus.Errorf("Unable to fetch session for uid %s.", uid)
 		return nil
 	}
 
 	var session *Session
 	err = json.Unmarshal([]byte(res), &session)
 	if err != nil {
-		m.log.Warn(
-			context.Background(),
-			fmt.Sprintf("Unable to unmarshal session packet for uid %s:", uid),
-			slog.F("error", xerrors.Errorf("%v", err)))
-
-		// useless to create a new session packet.
+		logrus.Warnf("Unable to unmarshal session packet for uid %s:\n%v", uid, err)
 		return nil
 	}
 
@@ -196,29 +190,18 @@ func (m Manager) Get(uid string, req *http.Request) *Session {
 
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			m.log.Warn(
-				context.Background(),
-				fmt.Sprintf("User %s doesn't exist anymore (but has sessions still), removing from Redis...", uid),
-			)
+			logrus.Warnf("User %s doesn't exist in the database anymore but sessions still exists!")
 
 			err := m.redis.Connection.HDel(context.TODO(), "tsubaki:sessions", uid).Err()
 			if err != nil {
-				m.log.Error(
-					context.Background(),
-					fmt.Sprintf("Unfortunately, I was unable to delete the packet for you. Run this command in `redis-cli` to do so:\n\nHDEL tsubaki:sessions %s", uid),
-				)
-
+				logrus.Fatalf("I was unable to delete the session packet for you. Maybe try using `redis-cli`?\n> HDEL tsubaki:sessions %s", uid)
 				return nil
 			}
 
 			return nil
 		}
 
-		m.log.Error(
-			context.Background(),
-			"Unable to find user from database:",
-			slog.F("error", xerrors.Errorf("%v", err)))
-
+		logrus.Errorf("Unable to find user %s in database:\n%v", uid, err)
 		return nil
 	}
 
@@ -226,25 +209,17 @@ func (m Manager) Get(uid string, req *http.Request) *Session {
 }
 
 func (m Manager) New(uid string) *Session {
-	m.log.Info(context.Background(), fmt.Sprintf("Creating user session for %s...", uid))
+	logrus.Infof("Creating session for user %s...", uid)
 	token, err := NewToken(uid)
 	if err != nil {
-		m.log.Error(
-			context.Background(),
-			fmt.Sprintf("Unable to create JWT token for uid %s:", uid),
-			slog.F("error", xerrors.Errorf("%v", err)))
-
+		logrus.Errorf("Unable to create JWT token for uid %s:\n%v", uid, err)
 		return nil
 	}
 
 	// find the user in the database
 	user, err := m.db.Client.User.FindUnique(db.User.ID.Equals(uid)).Exec(context.TODO())
 	if err != nil {
-		m.log.Error(
-			context.Background(),
-			"Unable to find user from database:",
-			slog.F("error", xerrors.Errorf("%v", err)))
-
+		logrus.Errorf("Unable to find user %s from database:\n%v", uid, err)
 		return nil
 	}
 
@@ -257,6 +232,17 @@ func (m Manager) New(uid string) *Session {
 	return sess
 }
 
+func (m Manager) Delete(uid string) {
+	logrus.Warnf("Deleting session for user %s...", uid)
+	err := m.redis.Connection.HDel(context.TODO(), "tsubaki:sessions", uid).Err()
+	if err != nil {
+		if err == redis.Nil {
+			return
+		}
+		logrus.Errorf("Unable to delete session from user %s:\n%v", uid, err)
+	}
+}
+
 func (m Manager) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		// if there is no authorization header, let's just skip it.
@@ -265,41 +251,52 @@ func (m Manager) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		decoded, err := DecodeToken(req.Header.Get("Authorization"))
-		if err != nil {
+		auth := req.Header.Get("Authorization")
+		if strings.HasPrefix(auth, "Bearer") {
+			// TODO: access tokens
+			next.ServeHTTP(w, req)
+		} else if strings.HasPrefix(auth, "Session") {
+			decoded, err := DecodeToken(req.Header.Get("Authorization"))
+			if err != nil {
+				w.WriteHeader(406)
+				_ = json.NewEncoder(w).Encode(&response{
+					Message: fmt.Sprintf("Invalid token: %s", req.Header.Get("Authorization")),
+				})
+
+				return
+			}
+
+			// get user id from MapClaims
+			uid, ok := decoded["uid"].(string)
+			if !ok {
+				w.WriteHeader(500)
+				_ = json.NewEncoder(w).Encode(&response{
+					Message: "Unable to cast `uid` ~> string.",
+				})
+
+				return
+			}
+
+			// add it to the request context
+			user, err := m.db.Client.User.FindUnique(db.User.ID.Equals(uid)).Exec(context.TODO())
+			if err != nil {
+				w.WriteHeader(500)
+				_ = json.NewEncoder(w).Encode(&response{
+					Message: "Unable to retrieve user from database.",
+				})
+
+				return
+			}
+
+			// blep!
+			ctx := context.WithValue(req.Context(), "user_id", user.ID)
+			req = req.WithContext(ctx)
+			next.ServeHTTP(w, req)
+		} else {
 			w.WriteHeader(406)
 			_ = json.NewEncoder(w).Encode(&response{
-				Message: fmt.Sprintf("Invalid token: %s", req.Header.Get("Authorization")),
+				Message: "Missing `Bearer` or `Session` prefix.",
 			})
-
-			return
 		}
-
-		// get user id from MapClaims
-		uid, ok := decoded["uid"].(string)
-		if !ok {
-			w.WriteHeader(500)
-			_ = json.NewEncoder(w).Encode(&response{
-				Message: "Unable to cast `uid` ~> string.",
-			})
-
-			return
-		}
-
-		// add it to the request context
-		user, err := m.db.Client.User.FindUnique(db.User.ID.Equals(uid)).Exec(context.TODO())
-		if err != nil {
-			w.WriteHeader(500)
-			_ = json.NewEncoder(w).Encode(&response{
-				Message: "Unable to retrieve user from database.",
-			})
-
-			return
-		}
-
-		// blep!
-		ctx := context.WithValue(req.Context(), "user", user)
-		req = req.WithContext(ctx)
-		next.ServeHTTP(w, req)
 	})
 }

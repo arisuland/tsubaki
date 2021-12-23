@@ -18,16 +18,12 @@ package storage
 
 import (
 	"arisu.land/tsubaki/pkg/util"
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
-	"context"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 )
-
-var log = slog.Make(sloghuman.Sink(os.Stdout))
 
 // FilesystemProvider is a BaseStorageProvider for using the local filesystem
 // to handle projects in.
@@ -51,11 +47,11 @@ func NewFilesystemStorageProvider(config FilesystemStorageConfig) BaseStoragePro
 }
 
 func (fs FilesystemProvider) Init() error {
-	log.Info(context.Background(), "Checking if directory exists...")
+	logrus.Infof("Checking if directory %s exists...", fs.Directory)
 	_, err := os.Stat(fs.Directory)
 
 	if os.IsNotExist(err) {
-		log.Warn(context.Background(), "Directory doesn't exist, creating...")
+		logrus.Warnf("Directory %s doesn't exist!", fs.Directory)
 		err = os.MkdirAll(filepath.Dir(fs.Directory), 0755)
 		if err != nil {
 			return err
@@ -66,19 +62,19 @@ func (fs FilesystemProvider) Init() error {
 	//	return errors.New(fmt.Sprintf("directory %s was not a valid directory.", fs.Directory))
 	//}
 
-	log.Info(context.Background(), "Checking if `arisu.lock` exists...")
+	logrus.Info("Checking if manifest lock exists...")
 	path := fmt.Sprintf("%s/arisu.lock", fs.Directory)
 
 	// this looks ugly, yes.
 	_, err = os.Stat(path)
 	if err != nil && os.IsNotExist(err) {
-		log.Info(context.Background(), "Lockfile is missing or is corrupted, overriding...")
+		logrus.Warn("Manifest lockfile is missing or corrupted, overriding...")
 		file, err := util.CreateFile(path)
 		if err != nil {
 			return nil
 		}
 
-		log.Info(context.Background(), fmt.Sprintf("Creating file %s!", path))
+		logrus.Infof("Creating file %s...", path)
 		err = os.WriteFile(path, []byte("... this file exists as a lockfile ...\\n"), 0755)
 		if err != nil {
 			return err
@@ -90,7 +86,7 @@ func (fs FilesystemProvider) Init() error {
 		}
 	}
 
-	log.Info(context.Background(), "Checking if lockfile contents is valid...")
+	logrus.Info("Checking if manifest lockfile was not tampered with...")
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
@@ -98,14 +94,13 @@ func (fs FilesystemProvider) Init() error {
 
 	content := string(contents)
 	if content != "... this file exists as a lockfile ...\n" {
-		log.Info(context.Background(), "Corrupted lockfile (probably was tampered), rewriting...")
+		logrus.Warn("Manifest lockfile was tampered or was corrupted! Rewriting...")
 		err = os.WriteFile(path, []byte("... this file exists as a lockfile ...\n"), 0755)
 		if err != nil {
 			return err
 		}
 	}
 
-	log.Info(context.Background(), "Everything looks alright!")
 	return nil
 }
 

@@ -19,14 +19,11 @@ package graphql
 import (
 	"arisu.land/tsubaki/graphql/resolvers"
 	"arisu.land/tsubaki/pkg/infra"
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
-	"context"
 	"encoding/json"
 	"github.com/graph-gophers/graphql-go"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
-	"os"
 )
 
 // Manager is the main manager for executing GraphQL queries/mutations/subscriptions.
@@ -36,9 +33,6 @@ type Manager struct {
 
 	// Schema is the GraphQL schema generated from the codegen binary.
 	Schema *graphql.Schema
-
-	// Logger returns the logger for this Manager.
-	Logger slog.Logger
 }
 
 // RequestBody is the request body when requesting from `POST /graphql`
@@ -52,7 +46,6 @@ type RequestBody struct {
 func NewGraphQLManager(container *infra.Container) *Manager {
 	return &Manager{
 		Container: container,
-		Logger:    slog.Make(sloghuman.Sink(os.Stdout)),
 		Schema:    nil,
 	}
 }
@@ -60,7 +53,7 @@ func NewGraphQLManager(container *infra.Container) *Manager {
 // GenerateSchema returns a error if it cannot properly generate the schema
 // to be executable. Run `./build/codegen/schema` to generate the `schema.gql` file.
 func (m *Manager) GenerateSchema() error {
-	m.Logger.Info(context.Background(), "Generating GraphQL schema...")
+	logrus.Info("Generating GraphQL schema...")
 	contents, err := ioutil.ReadFile("./schema.gql")
 	if err != nil {
 		return err
@@ -70,7 +63,7 @@ func (m *Manager) GenerateSchema() error {
 	content := string(contents)
 	schema := graphql.MustParseSchema(content, resolvers.NewResolver(m.Container), opts...)
 
-	m.Logger.Info(context.Background(), "Generated successfully. :3")
+	logrus.Info("Successfully generated schema!")
 	m.Schema = schema
 	return nil
 }
@@ -79,8 +72,7 @@ func (m *Manager) GenerateSchema() error {
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var params RequestBody
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		m.Logger.Error(r.Context(), "Unable to decode ")
-
+		logrus.Errorf("Unable to unmarshal payload:\n%v", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}

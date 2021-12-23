@@ -14,21 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package pkg
+package update
 
-var (
-	Version    string
-	CommitHash string
-	BuildDate  string
-	Profiler   = false
-)
+type ProjectArgs struct {
+	// Sets the newly description of a [Project]. Must be 240 characters
+	// or shorter.
+	Description *string
 
-func SetVersion(version string, commitHash string, buildDate string) {
-	Version = version
-	CommitHash = commitHash
-	BuildDate = buildDate
-}
-
-func EnableProfiler() {
-	Profiler = true
+	// The name to use for this user to show on the site.
+	Name *string
 }

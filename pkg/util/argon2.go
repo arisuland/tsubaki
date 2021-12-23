@@ -46,6 +46,7 @@ func GeneratePassword(password string) (string, error) {
 // from the database entry.
 func VerifyPassword(password string, hash string) (bool, error) {
 	parts := strings.Split(hash, "$")
+	fmt.Println(hash, parts[3])
 	_, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", 64*1024, 1, 4)
 	if err != nil {
 		return false, err

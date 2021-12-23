@@ -17,6 +17,28 @@
 # Represents all the queries you can create using the GraphQL endpoint.
 # Most of the queries do not require authentication.
 type Query {
+    # Returns a list of subprojects in a [Project] object.
+    #
+    # @param projectId ~ The project ID to retrieve from.
+    # @return [Array<Subproject>] ~ A list of subprojects that
+    # belong in this [Project]. If none were registered, then
+    # this will be an empty array.
+#    subprojects(projectId: String!): [Subproject!]!
+#
+#    # Retrieves the list of projects for any user by their [uid].
+#    # This query also includes pagination options for easily
+#    # pagination.
+#    projects(uid: String!, pagination: PaginationOptions): [Project!]!
+#
+#    # Returns the access tokens registered to this user.
+#    accessTokens: [AccessToken!]!
+#
+#    # Returns a project's metadata with the provided [id].
+#    #
+#    # @param id ~ The project ID to retrieve from.
+#    # @return [Project?] ~ Returns the project metadata.
+#    project(id: String): Project
+
     # A test query to see if the connection is working.
     hello: String!
 
@@ -27,12 +49,37 @@ type Query {
     # masked information (password, email) or `null` if nothing
     # was found.
     user(id: String!): User
+
+    # Returns the user information that is currently logged in.
+    # This returns `null` if no user was registered.
+#    me: User
 }
 
 # Mutations are a way to modify any Tsubaki object, but most mutations require
 # authentication. Read more about authentication on our documentation:
 # https://docs.arisu.land/graphql#authentication
 type Mutation {
+    # Re-enables the user's account.
+    reenableUser: Boolean!
+
+    # Update a user's metadata.
+    updateUser(args: UpdateUserArgs!): Boolean!
+
+    # Disable the current user. This doesn't completely wipe all the data,
+    # it only locks the user from their account.
+    disableUser: Boolean!
+
+    # Deletes the current user from the database, in which, it will:
+    #   - delete all metadata
+    #   - delete all projects
+    #   - delete all sessions
+    #
+    # If you wish to disable the account for the current user, use the
+    # [disableUser] mutation.
+    #
+    # @returns [Boolean] ~ If the action succeeded.
+    deleteUser: Boolean!
+
     # Creates a new user and returns a [User] object.
     #
     # @param email ~ The email to register the user as
@@ -41,6 +88,17 @@ type Mutation {
     # @returns [User?] ~ Returns a new [User] object or `nil` if any
     # errors occur.
     createUser(email: String!, password: String!, username: String!): User
+
+    # Logs out the current user and deletes their session token.
+    logout: Boolean!
+
+    # Login in the current user and creates a session token for them that
+    # lasts for 2 days.
+    #
+    # @param usernameOrEmail ~ The username or the email to sign-in as.
+    # @param password ~ The raw password to use to sign-in.
+    # @return [LoginResult] ~ The result of this login.
+    login(usernameOrEmail: String!, password: String!): LoginResult!
 }
 
 # Represents a user account.
@@ -85,6 +143,10 @@ type Project {
     # Returns a ISO-8601 formatted date on when the user has updated their account.
     updatedAt:   String!
 
+    # Returns a list of [Subproject]s available in this parent [Project].
+    # This will be an empty array if none were created.
+#    subprojects: [Subproject!]!
+
     # Returns a ISO-8601 formatted date on when the user has created their account.
     createdAt:   String!
 
@@ -101,3 +163,167 @@ type Project {
     # Snowflake of when this User was generated in.
     id:          String!
 }
+
+## Subproject is a project that lives under a parent [Project]. Think of this
+## as the parent project as a monorepo with multiple subprojects.
+##
+## Subprojects inherit all permissions and flags from the parent project and
+## will reflect if the parent project has updated the permissions and/or flags.
+#type Subproject {
+#    # The project's description that is embedded on the site.
+#    description: String
+#
+#    # Returns a ISO-8601 formatted date on when the subproject was updated.
+#    updatedAt:   String!
+#
+#    # Returns a ISO-8601 formatted date on when the subproject was created in.
+#    createdAt:   String!
+#
+#    # The parent project that lives in this [Subproject].
+#    parent:      Project!
+#
+#    # The name of the subproject.
+#    name:        String!
+#
+#    # Snowflake of when this Subproject was generated in.
+#    id:          String!
+#}
+#
+## Result is a object that returns no errors or some errors that
+## conflicted with the operation.
+#type Result {
+#    # If this [Result] was a success or not.
+#    success: Boolean!
+#
+#    # A list of errors of what went wrong.
+#    errors: [Error!]!
+#}
+
+type LoginResult {
+    # If this [Result] was a success or not.
+    success: Boolean!
+
+    # A list of errors of what went wrong.
+    errors: [Error!]!
+
+    # The session token that expires every 2 days.
+    token: String!
+}
+
+# Error is a object that shows the errors in a [Result].
+type Error {
+    # The message on why it errored.
+    message: String!
+
+    # The code that this [Error] is associated with. A list
+    # of errors can be found on our [docs](https://docs.arisu.land/graphql/reference#error-codes).
+    code: Int!
+}
+
+# AccessToken represents an access token from an oauth2 application
+# or created by the supplied [User].
+#
+# What's the difference between session and access tokens?
+# Session tokens are limited to 2 days max while access tokens live
+# until the duration that is supplied (max is 14 days) then it is expired.
+# It is not recommended to create a long-lasting token but... your choice!
+#
+# Session tokens cannot be reached from the GraphQL API due to security reasons
+# while access tokens *can* but with the current user's session token, in which,
+# you can only get through the [login] method.
+#type AccessToken {
+#    # The available [scopes][AccessTokenScope] for this [AccessToken]. Think of this
+#    # as "permissions" the token has.
+#    scopes: [AccessTokenScope!]!
+#
+#    # The token itself.
+#    token: String!
+#
+#    # The [User] that this [AccessToken] belongs to.
+#    user: User!
+#}
+#
+## Options object for pagination of any [Project]s.
+#input PaginationOptions {
+#    take: Int
+#    skip: Int
+#    sortBy: SortOrder
+#}
+
+# UpdateUserArgs is a input field to update a [User].
+input UpdateUserArgs {
+    # Sets the newly description of a [User]. Must be 240 characters
+    # or shorter.
+    description: String
+
+    # The new username to set. If the username is already taken,
+    # it will error.
+    username: String
+
+    # The name to use for this user to show on the site.
+    name: String
+}
+
+## NewProjectArgs is a input field to create a new [Project].
+#input NewProjectArgs {
+#    # The description of the [Project].
+#    description: String
+#
+#    # The name of the project.
+#    name: String!
+#}
+#
+## NewSubprojectArgs is a input field to create a new [Subproject] in a [Project].
+#input NewSubprojectArgs {
+#    # The description of the [Project].
+#    description: String
+#
+#    # The name of the project.
+#    name: String!
+#}
+
+## UpdateProjectArgs is a input argument that updates a project's metadata.
+#input UpdateProjectArgs {
+#    # The description of the [Project].
+#    description: String
+#
+#    # The name of the project.
+#    name: String
+#}
+#
+## UpdateSubprojectArgs is a input argument that updates a subproject's metadata.
+#input UpdateSubprojectArgs {
+#    # The description of the [Project].
+#    description: String
+#
+#    # The name of the project.
+#    name: String
+#}
+#
+## AccessTokenScope is a enum that represents all the scopes
+## in a [AccessToken] object.
+#enum AccessTokenScope {
+#    # PUBLIC_WRITE grants the OAuth2 application to write any data
+#    # to any repository that grants the user with the ALLOW_WRITE permission.
+#    PUBLIC_WRITE
+#
+#    # REPO_CREATE grants the OAuth2 application to create any project
+#    # or subproject.
+#    REPO_CREATE
+#
+#    # REPO_DELETE grants the OAuth2 application to delete any project or subproject.
+#    REPO_DELETE
+#
+#    # REPO_UPDATE grants the OAuth2 application or yourself through our API to
+#    # update a project or subproject's information
+#    REPO_UPDATE
+#}
+#
+## The sorting order for pagination-based queries.
+#enum SortOrder {
+#    # Ascending order
+#    ASC
+#
+#    # Descending order
+#    DESC
+#}

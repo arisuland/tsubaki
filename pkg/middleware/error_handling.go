@@ -18,11 +18,10 @@ package middleware
 
 import (
 	"arisu.land/tsubaki/pkg/infra"
-	"cdr.dev/slog"
 	"context"
 	"fmt"
 	"github.com/getsentry/sentry-go"
-	"golang.org/x/xerrors"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 )
@@ -72,10 +71,7 @@ func (middle ErrorHandlerMiddleware) recover(hub *sentry.Hub, req *http.Request)
 			hub.Flush(1 * time.Second)
 		}
 
-		// print the panic
-		log.Error(
-			req.Context(),
-			fmt.Sprintf("Received panic on %s %s:", req.Method, req.URL.Path),
-			slog.F("error", xerrors.Errorf("%v", err)))
+		// print the panic if there was one
+		logrus.Fatalf("Received panic on %s %s:\n%v", req.Method, req.URL.Path, err)
 	}
 }

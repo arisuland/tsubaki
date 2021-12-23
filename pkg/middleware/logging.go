@@ -19,16 +19,11 @@ package middleware
 import (
 	"arisu.land/tsubaki/pkg/managers"
 	"arisu.land/tsubaki/pkg/util"
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
-	"fmt"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sirupsen/logrus"
 	"net/http"
-	"os"
 	"time"
 )
-
-var log = slog.Make(sloghuman.Sink(os.Stdout))
 
 func LogMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -37,8 +32,7 @@ func LogMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(ww, req)
 
 		statusCode := util.GetStatusCode(ww.Status())
-		log.Info(req.Context(), fmt.Sprintf(
-			"[%s] %s %s (%s) => %d %s (%d bytes written) [%s]",
+		logrus.Infof("\n[%s] %s %s (%s) => %d %s (%d bytes written) [%s]",
 			req.RemoteAddr,
 			req.Method,
 			req.URL.Path,
@@ -47,7 +41,7 @@ func LogMiddleware(next http.Handler) http.Handler {
 			statusCode,
 			ww.BytesWritten(),
 			time.Since(start).String(),
-		))
+		)
 
 		managers.RequestMetric.WithLabelValues(req.Method, req.URL.Path).Inc()
 		managers.RequestLatencyMetric.WithLabelValues(req.Method, req.URL.Path).Observe(float64(time.Since(start).Nanoseconds() / 1000000))

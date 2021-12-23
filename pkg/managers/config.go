@@ -20,14 +20,12 @@ import (
 	"arisu.land/tsubaki/pkg/kafka"
 	"arisu.land/tsubaki/pkg/storage"
 	"arisu.land/tsubaki/pkg/util"
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
-	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/getsentry/sentry-go"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
@@ -36,7 +34,6 @@ import (
 )
 
 var (
-	log        = slog.Make(sloghuman.Sink(os.Stdout))
 	configFile = flag.String("c", "./config.yml", "the config file path")
 
 	NotIntError       = errors.New("provided value was not a integer")
@@ -165,20 +162,19 @@ func NewConfig() (*Config, error) {
 }
 
 func loadConfig() (*Config, error) {
-	log.Info(context.Background(), "Loading configuration...")
-	flag.Parse()
+	logrus.Info("Loading configuration...")
 
 	if configFile == nil {
 		// Check if the root directory has the file (most likely)
 		_, err := os.Stat("./config.yml")
 		if !os.IsNotExist(err) {
-			log.Info(context.Background(), "Found config.yml file in current directory, loading from that...")
+			logrus.Info("Found configuration in root directory, loading from that...")
 
 			owo := "./config.yml"
 			configFile = &owo
 		}
 
-		log.Warn(context.Background(), "Couldn't find `-c` flag or from current directory, loading from environment variables...")
+		logrus.Warn("Couldn't find `-c` flag or from current directory, loading from environment variables...")
 		return loadFromEnvironment()
 	}
 
@@ -233,10 +229,9 @@ func loadConfig() (*Config, error) {
 			return nil, errors.New("unable to generate secret key base :<")
 		}
 
-		log.Warn(
-			context.Background(),
-			"It is recommended to store your newly generated secret key base for JWT authentication, since after a restart, it will fail to verify JWT sessions.\nSave this in your config.yml file:",
-			slog.F("secret_key_base", randomHash),
+		logrus.Warnf(
+			"It is recommended to store your generated key for JWT authentication. After a restart, JWTs will fail to be verified.\n%s",
+			randomHash,
 		)
 
 		config.SecretKeyBase = randomHash
@@ -246,7 +241,7 @@ func loadConfig() (*Config, error) {
 }
 
 func loadFromEnvironment() (*Config, error) {
-	log.Info(context.Background(), "Loading configuration from environment variables...")
+	logrus.Info("Loading configuration from environment variables...")
 
 	// Load from .env if there is any
 	if _, err := os.Stat("./.env"); !os.IsNotExist(err) {
@@ -277,7 +272,7 @@ func loadFromEnvironment() (*Config, error) {
 
 	telemetryEnabled := convertToBool(os.Getenv("TSUBAKI_ENABLE_TELEMETRY"), false)
 	if telemetryEnabled {
-		log.Warn(context.Background(), "You have enabled telemetry reports! You have been warned... :ghost: (https://docs.arisu.land/telemetry)")
+		logrus.Warn("You have enabled telemetry reports! You have been warned... :ghost: (https://docs.arisu.land/telemetry)")
 	}
 
 	portRetryLimit, err := strconv.Atoi(os.Getenv("TSUBAKI_PORT_RETRY_LIMIT"))
@@ -333,6 +328,7 @@ func loadFromEnvironment() (*Config, error) {
 		return nil, err
 	}
 
+	logrus.Info("Loaded configuration from environment variables!")
 	return &Config{
 		TelemetryEnabled: telemetryEnabled,
 		PortRetryLimit:   portRetryLimit,

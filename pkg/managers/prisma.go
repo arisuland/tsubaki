@@ -19,6 +19,7 @@ package managers
 import (
 	"arisu.land/tsubaki/prisma/db"
 	"context"
+	"github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -38,26 +39,23 @@ func NewPrisma() Prisma {
 
 // Connect is a method to connect this Prisma instance to the world!
 func (p Prisma) Connect() error {
-	log.Info(context.Background(), "Connecting to PostgreSQL...")
+	logrus.Info("Connecting to database...")
 
 	err := p.Client.Connect()
 	if err != nil {
 		return err
 	}
 
-	log.Info(context.Background(), "Connected successfully!")
+	logrus.Info("Connected successfully!")
 	return nil
 }
 
 // Close is a method to close this Prisma instance.
 func (p Prisma) Close() error {
-	log.Warn(context.Background(), "Closing off connection...")
-
 	if err := p.Client.Disconnect(); err != nil {
 		return err
 	}
 
-	log.Warn(context.Background(), "Closed off the connection!")
 	return nil
 }
 

@@ -17,7 +17,10 @@
 package controllers
 
 import (
+	"arisu.land/tsubaki/graphql/types"
+	"arisu.land/tsubaki/graphql/types/update"
 	"arisu.land/tsubaki/pkg/managers"
+	"arisu.land/tsubaki/pkg/sessions"
 	"arisu.land/tsubaki/pkg/util"
 	"arisu.land/tsubaki/prisma/db"
 	"context"
@@ -115,4 +118,121 @@ func (m UserController) CreateUser(
 	}
 
 	return user, nil
+}
+
+func (c UserController) UpdateUser(
+	ctx context.Context,
+	uid string,
+	args update.UserArgs,
+) error {
+	_, err := c.Prisma.Client.User.FindUnique(db.User.ID.Equals(uid)).Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	if args.Description != nil {
+		desc := *args.Description
+		if len(desc) > 240 {
+			code, msg := types.Get(1008)
+			return fmt.Errorf("%d: %s", code, msg)
+		}
+
+		_, err := c.Prisma.Client.User.FindUnique(db.User.ID.Equals(uid)).Update(db.User.Description.Set(desc)).Exec(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	if args.Username != nil {
+		username := *args.Username
+		existing, err := c.Prisma.Client.User.FindUnique(db.User.Username.Equals(username)).Exec(ctx)
+		if err != nil {
+			return err
+		}
+
+		if existing != nil {
+			code, msg := types.Get(1004)
+			return fmt.Errorf("%d: %s", code, msg)
+		}
+
+		_, err = c.Prisma.Client.User.FindUnique(db.User.ID.Equals(uid)).Update(db.User.Username.Set(username)).Exec(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	if args.Name != nil {
+		name := *args.Name
+		if len(name) > 60 {
+			code, msg := types.Get(1008)
+			return fmt.Errorf("%d: %s", code, msg)
+		}
+
+		_, err := c.Prisma.Client.User.FindUnique(db.User.ID.Equals(uid)).Update(db.User.Name.Set(name)).Exec(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	return errors.New("no update query was performed")
+}
+
+func (c UserController) DeleteUser(
+	ctx context.Context,
+	uid string,
+) error {
+	_, err := c.Prisma.Client.User.FindUnique(db.User.ID.Equals(uid)).Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	// now we delete
+	_, err = c.Prisma.Client.User.FindUnique(db.User.ID.Equals(uid)).Delete().Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	// delete all sessions
+	sessions.Sessions.Delete(uid)
+	return nil
+}
+
+func (c UserController) DisableUser(
+	ctx context.Context,
+	uid string,
+) error {
+	_, err := c.Prisma.Client.User.FindUnique(db.User.ID.Equals(uid)).Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	// now we delete
+	_, err = c.Prisma.Client.User.FindUnique(db.User.ID.Equals(uid)).Update(db.User.Disabled.Set(true)).Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	// delete all sessions
+	sessions.Sessions.Delete(uid)
+	return nil
+}
+
+func (c UserController) ReenableUser(
+	ctx context.Context,
+	uid string,
+) error {
+	_, err := c.Prisma.Client.User.FindUnique(db.User.ID.Equals(uid)).Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	// now we delete
+	_, err = c.Prisma.Client.User.FindUnique(db.User.ID.Equals(uid)).Update(db.User.Disabled.Set(false)).Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	// delete all sessions
+	sessions.Sessions.Delete(uid)
+	return nil
 }

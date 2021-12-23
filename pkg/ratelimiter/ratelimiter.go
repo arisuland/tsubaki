@@ -5,16 +5,13 @@ package ratelimiter
 
 import (
 	"arisu.land/tsubaki/pkg/managers"
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"golang.org/x/xerrors"
+	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -49,41 +46,34 @@ func (r Ratelimit) Exceeded() bool {
 }
 
 func (r Ratelimit) Expired() bool {
-	return r.ResetTime.UnixNano() < r.ResetTime.UnixNano()
+	return r.ResetTime.UnixNano() < time.Now().UnixNano()
 }
 
 type Ratelimiter struct {
 	Ratelimits map[string]*Ratelimit
 	Redis      *managers.RedisManager
-	logger     slog.Logger
 }
 
 func NewRatelimiter(redis *managers.RedisManager) Ratelimiter {
-	log := slog.Make(sloghuman.Sink(os.Stdout))
 	s := time.Now()
 	rl := Ratelimiter{
 		Ratelimits: make(map[string]*Ratelimit),
 		Redis:      redis,
-		logger:     log,
 	}
 
 	count := redis.Connection.HLen(context.TODO(), "tsubaki:ratelimits").Val()
-	log.Info(context.Background(), fmt.Sprintf("Took %s to get %d ratelimits", time.Now().Sub(s).String(), count))
+	logrus.Infof("Took %s to get %d ratelimits", time.Now().Sub(s).String(), count)
 
 	s = time.Now()
 	result, err := redis.Connection.HGetAll(context.TODO(), "tsubaki:ratelimits").Result()
 	if err != nil {
-		log.Warn(
-			context.Background(),
-			"Unable to retrieve ratelimits, they have been reset.",
-			slog.F("error", xerrors.Errorf("%v", err)),
-		)
+		logrus.Warnf("Unable to retrieve all ratelimits...\n%v", err)
 	} else {
 		for key, value := range result {
 			r := &Ratelimit{}
 			err := json.Unmarshal([]byte(value), r)
 			if err != nil {
-				log.Warn(context.Background(), fmt.Sprintf("Unable to decode ratelimit for %s, skipping.", key))
+				logrus.Warnf("Unable to decode ratelimit for ip %s:\n%v", key, err)
 				continue
 			}
 
@@ -91,7 +81,31 @@ func NewRatelimiter(redis *managers.RedisManager) Ratelimiter {
 		}
 	}
 
-	log.Info(context.Background(), fmt.Sprintf("Took %s to re-add ratelimits (%d/%d ratelimits)", time.Now().Sub(s).String(), len(rl.Ratelimits), count))
+	logrus.Infof(
+		"Took %s to re-implement all ratelimits (%d/%d ratelimits)",
+		time.Now().Sub(s).String(),
+		len(rl.Ratelimits),
+		count,
+	)
+
+	// Get all the expired ratelimits
+	expired := make([]string, 0)
+	for ip, value := range rl.Ratelimits {
+		if value.Expired() {
+			expired = append(expired, ip)
+		}
+	}
+
+	logrus.Infof("Found %d ratelimits to expire!", len(expired))
+	for _, r := range expired {
+		err := rl.Redis.Connection.HDel(context.TODO(), "tsubaki:sessions", r).Err()
+		if err != nil {
+			logrus.Warnf("Unable to delete expired ratelimit:\n%v", err)
+			continue
+		}
+
+		logrus.Infof("Deleted expired ratelimit for IP %s", r)
+	}
 
 	go rl.resetExpired()
 	return rl
@@ -102,15 +116,10 @@ func (rl Ratelimiter) resetExpired() {
 		select {
 		case <-time.After(time.Duration(value.ResetTime.UnixNano())):
 			{
-				rl.logger.Warn(context.Background(), fmt.Sprintf("Ratelimit for IP %s has been expired.", ip))
+				logrus.Warnf("Ratelimit for IP %s has been expired.", ip)
 				err := rl.Redis.Connection.HDel(context.TODO(), "tsubaki:timeouts", ip).Err()
 				if err != nil {
-					rl.logger.Warn(
-						context.Background(),
-						fmt.Sprintf("Unable to delete IP %s:", ip),
-						slog.F("error", xerrors.Errorf("%v", err)),
-					)
-
+					logrus.Warnf("Unable to remove ratelimit packet for %s:\n%v", ip, err)
 					continue
 				}
 			}
@@ -138,11 +147,7 @@ func (rl Ratelimiter) Get(ip string) *Ratelimit {
 	var ratelimit *Ratelimit
 	err = json.Unmarshal([]byte(res), &ratelimit)
 	if err != nil {
-		rl.logger.Warn(
-			context.TODO(),
-			fmt.Sprintf("Unable to unmarshal ratelimit for ip %s:", ip),
-			slog.F("error", xerrors.Errorf("%v", err)),
-		)
+		logrus.Warnf("Unable to unmarshal ratelimit for IP %s, using new ratelimit packet", ip)
 
 		l := newRatelimit()
 		ratelimit = &l

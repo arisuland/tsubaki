@@ -17,13 +17,10 @@
 package managers
 
 import (
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
 	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"os"
 	"time"
 )
 
@@ -34,9 +31,6 @@ type RedisManager struct {
 
 	// config represents the Redis configuration.
 	config RedisConfig
-
-	// logger is the slog.Logger for this RedisManager instance.
-	logger slog.Logger
 }
 
 // RedisConfig represents the configuration for using Redis as a cache.
@@ -85,14 +79,11 @@ func NewRedisClient(config RedisConfig) *RedisManager {
 	return &RedisManager{
 		Connection: nil,
 		config:     config,
-		logger:     slog.Make(sloghuman.Sink(os.Stdout)),
 	}
 }
 
 // Connect creates a new Connection towards Redis.
 func (m *RedisManager) Connect() error {
-	m.logger.Info(context.TODO(), "Connecting to Redis...")
-
 	var password string
 	if m.config.Password == nil {
 		password = ""
@@ -138,7 +129,6 @@ func (m *RedisManager) Connect() error {
 // Ping returns the ping of the Redis server.
 func (m *RedisManager) Ping() int64 {
 	t := time.Now()
-
 	if err := m.Connection.Ping(context.TODO()).Err(); err != nil {
 		return -1
 	} else {

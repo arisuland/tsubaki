@@ -5,18 +5,18 @@ import (
 	"arisu.land/tsubaki/pkg"
 	"arisu.land/tsubaki/pkg/infra"
 	"arisu.land/tsubaki/pkg/is"
+	"arisu.land/tsubaki/pkg/logging"
 	"arisu.land/tsubaki/pkg/middleware"
 	"arisu.land/tsubaki/pkg/ratelimiter"
 	"arisu.land/tsubaki/pkg/sessions"
 	"arisu.land/tsubaki/pkg/util"
 	"arisu.land/tsubaki/routers"
 	"arisu.land/tsubaki/routers/integrations"
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
+	"flag"
 	"fmt"
 	"github.com/go-chi/chi/v5"
-	"golang.org/x/xerrors"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,50 +25,55 @@ import (
 )
 
 var (
-	version    string
-	commitHash string
-	buildDate  string
-	log        = slog.Make(sloghuman.Sink(os.Stdout))
+	version         string
+	commitHash      string
+	buildDate       string
+	profilerEnabled = flag.Bool("p", false, "enables profiling")
 )
 
 func init() {
-	// bit of warnings for now x3
-	if is.Root() {
-		log.Warn(context.Background(), "It is not recommended to run Tsubaki with `sudo` or under root.")
-	}
-
-	if is.Docker() {
-		log.Warn(context.Background(), "Make sure to backup your projects (if using filesystem storage) under a volume!")
-	}
-
-	if is.Kubernetes() {
-		log.Warn(context.Background(), "Make sure to backup your projects under a PVC!")
-	}
+	pkg.SetVersion(version, commitHash, buildDate)
+	logrus.SetFormatter(&logging.Formatter{})
+	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetReportCaller(true)
+	flag.Parse()
 }
 
 func main() {
-	pkg.SetVersion(version, commitHash, buildDate)
 	util.PrintBanner(version, commitHash, buildDate)
+
+	if profilerEnabled != nil && *profilerEnabled {
+		logrus.Info("Profiling is now enabled on the server!")
+	}
+
+	// bit of warnings for now x3
+	if is.Root() {
+		logrus.Warn("Make sure to run Tsubaki without using `sudo`, admin privileges on Windows, or under the `root` account.")
+	}
+
+	if is.Docker() {
+		logrus.Warn("Make sure you use the `-v` flag when running the Tsubaki Docker image if you're using the Filesystem Storage Provider.")
+	}
+
+	if is.Kubernetes() {
+		logrus.Warn("Make sure you create a persisted volume claim in your deployment or statefulset.")
+	}
 
 	container, err := infra.NewContainer()
 	if err != nil {
-		log.Error(
-			context.Background(),
-			"An error occurred while initializing container:",
-			slog.Error(xerrors.Errorf("%w", err)))
-
+		logrus.WithField("step", "container init").Errorf("Unable to initialize container: %v", err)
 		os.Exit(1)
 	}
 
-	log.Info(context.Background(), "Parsing GraphQL schema from ./schema.gql")
+	logrus.WithField("step", "graphql").Info("Parsing GraphQL schema from ./schema.gql!")
 	gql := graphql.NewGraphQLManager(container)
 
 	if err := gql.GenerateSchema(); err != nil {
-		log.Fatal(context.Background(), "Unable to parse GraphQL schema:", slog.Error(xerrors.Errorf("%v", err)))
+		logrus.WithField("step", "graphql").Errorf("Unable to parse GraphQL schema: %v", err)
 		os.Exit(1)
 	}
 
-	log.Info(context.Background(), "Starting up GraphQL server...")
+	logrus.WithField("step", "server").Info("Starting up server...")
 
 	rl := ratelimiter.NewRatelimiter(container.Redis)
 	router := chi.NewRouter()
@@ -98,24 +103,24 @@ func main() {
 
 	go func() {
 		// Run the server
-		log.Info(context.Background(), fmt.Sprintf("Now listening on address: %s", addr))
+		logrus.WithField("step", "server").Infof("Running Tsubaki under address '%s'", addr)
 
 		err = server.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			log.Fatal(context.Background(), "Error has occurred while trying to listen to server:", slog.Error(xerrors.Errorf("%v", err)))
+			logrus.Errorf("Unable to run server: %s", err)
 		}
 	}()
 
 	<-sigint
 
-	log.Warn(context.Background(), "Closing off GraphQL server...")
+	logrus.WithField("step", "shutdown").Warn("Closing off server...")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 	// Wait for connections to die off
 	go func() {
 		<-shutdownCtx.Done()
 		if shutdownCtx.Err() == context.DeadlineExceeded {
-			log.Fatal(context.Background(), "Graceful shutdown timed out! Forcing exit!")
+			logrus.WithField("step", "shutdown requests").Warn("Reached deadline to close off incoming requests...")
 		}
 	}()
 
@@ -123,7 +128,7 @@ func main() {
 		// Now shutdown the container
 		err = container.Close()
 		if err != nil {
-			log.Fatal(context.Background(), "Unable to cleanup container:", slog.Error(xerrors.Errorf("%v", err)))
+			logrus.WithField("step", "shutdown container").Errorf("Unable to close container resources: %v", err)
 		}
 
 		// Cancel the shutdown hook
@@ -132,7 +137,7 @@ func main() {
 
 	// Now we kill the server ^w^
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Fatal(context.Background(), "Unable to shutdown server:", slog.Error(xerrors.Errorf("%v", err)))
+		logrus.WithField("step", "shutdown server").Errorf("Unable to shutdown server: %v", err)
 		os.Exit(1)
 	}
 }

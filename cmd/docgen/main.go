@@ -18,28 +18,23 @@ package main
 
 import (
 	"arisu.land/tsubaki/graphql/resolvers"
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
+	"arisu.land/tsubaki/pkg/logging"
 	"context"
 	"fmt"
 	"github.com/graph-gophers/graphql-go"
+	"github.com/prometheus/common/log"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 )
 
-var log slog.Logger
-
 func init() {
-	log = slog.Make(sloghuman.Sink(os.Stdout))
+	logrus.SetFormatter(&logging.Formatter{})
+	logrus.SetLevel(logrus.InfoLevel)
 }
 
 func main() {
-	if len(os.Args) == 0 || len(os.Args) > 1 {
-		log.Warn(context.Background(), "Missing serverUrl argument or you went wayyyy overboard on the arguments.")
-		os.Exit(1)
-	}
-
-	log.Info(context.Background(), "Generating documentation from schema...")
+	logrus.Info("Generating documentation from schema...")
 	contents, err := ioutil.ReadFile("./schema.gql")
 	if err != nil {
 		log.Fatal(context.Background(), "Unable to find schema.gql file. You must be in the root directory of the project.")
@@ -51,7 +46,7 @@ func main() {
 	// It's fine if we have the container as `nil`
 	// since we are not making any requests, so it's perfectly fine.
 	schema := graphql.MustParseSchema(string(contents), resolvers.NewResolver(nil), opts...)
-	log.Info(context.Background(), "Successfully generated schema! Now converting to JSON object...")
+	logrus.Info("Generated schema! Now creating docs.json file...")
 
 	fmt.Println(schema.ASTSchema())
 }

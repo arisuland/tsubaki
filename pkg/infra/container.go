@@ -20,15 +20,10 @@ import (
 	"arisu.land/tsubaki/pkg/kafka"
 	"arisu.land/tsubaki/pkg/managers"
 	"arisu.land/tsubaki/pkg/storage"
-	"cdr.dev/slog"
-	"cdr.dev/slog/sloggers/sloghuman"
 	"context"
 	"errors"
-	"golang.org/x/xerrors"
-	"os"
+	"github.com/sirupsen/logrus"
 )
-
-var log = slog.Make(sloghuman.Sink(os.Stdout))
 
 var GlobalContainer *Container = nil
 
@@ -67,7 +62,7 @@ func NewContainer() (*Container, error) {
 		panic("tried to init a new global container.")
 	}
 
-	log.Info(context.Background(), "Initializing container...")
+	logrus.Info("Creating container...")
 
 	// Load configuration
 	config, err := managers.NewConfig()
@@ -130,7 +125,7 @@ func NewContainer() (*Container, error) {
 	// Create Sentry client
 	sentry, err := managers.NewSentryManager(config)
 	if err != nil {
-		log.Error(context.Background(), "Unable to initialize Sentry client, will be noop.", slog.F("error", xerrors.Errorf("%v", err)))
+		logrus.Errorf("Unable to initialize Sentry client, will be noop.\n%v", err)
 	}
 
 	GlobalContainer = &Container{
@@ -150,25 +145,25 @@ func NewContainer() (*Container, error) {
 // Close closes off all components and destroys data.
 func (c *Container) Close() error {
 	// Close off Redis
-	log.Warn(context.Background(), "Closing Redis connection...")
+	logrus.Warn("Closing off Redis...")
 	if err := c.Redis.Connection.Close(); err != nil {
 		return err
 	}
 
 	// Close off Prisma
-	log.Warn(context.Background(), "Closing PostgreSQL connection...")
+	logrus.Warn("Closing off PostgreSQL connection...")
 	if err := c.Database.Close(); err != nil {
 		return err
 	}
 
 	// Close off Kafka (if we are connected)
 	if c.Kafka != nil {
-		log.Warn(context.Background(), "Closing off Kafka producer...")
+		logrus.Warn("Closing off Kafka broker...")
 		if err := c.Kafka.Writer.Close(); err != nil {
 			return err
 		}
 	}
 
-	log.Warn(context.Background(), "Services have been closed.")
+	logrus.Warn("Everything has been destroyed.")
 	return nil
 }

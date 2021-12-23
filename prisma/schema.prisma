@@ -26,13 +26,14 @@ model User {
 
 model Project {
   description String?
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  ownerId     String   @map("owner_id")
-  owner       User     @relation(fields: [ownerId], references: [id])
-  flags       Int      @default(0)
+  subprojects Subproject[]
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  ownerId     String       @map("owner_id")
+  owner       User         @relation(fields: [ownerId], references: [id])
+  flags       Int          @default(0)
   name        String
-  id          String   @id
+  id          String       @id
 
   @@map("projects")
 }
@@ -44,4 +45,16 @@ model AccessToken {
   id      String @id
 
   @@map("access_tokens")
+}
+
+model Subproject {
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  parentId    String
+  parent      Project  @relation(fields: [parentId], references: [id])
+  name        String
+  id          String   @id
+
+  @@map("subprojects")
 }
