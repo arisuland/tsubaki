@@ -1,5 +1,5 @@
 // ☔ Arisu: Translation made with simplicity, yet robust.
-// Copyright (C) 2020-2021 Noelware
+// Copyright (C) 2020-2022 Noelware
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,28 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package util
+package types
 
-import "time"
+// SortOrder returns the sort order to use when querying
+// pagination-based queries.
+type SortOrder string
 
-// SetInterval creates a new timer to run code in a goroutine
-// based off this Stackoverflow thread: https://stackoverflow.com/a/16466581
-func SetInterval(run func(), t time.Duration) chan struct{} {
-	ticker := time.NewTicker(t)
-	quit := make(chan struct{})
+const (
+	ASC  SortOrder = "asc"
+	DESC SortOrder = "desc"
+)
 
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				run()
+func (s SortOrder) String() string {
+	switch s {
+	case ASC:
+		return "asc"
+	case DESC:
+		return "desc"
+	default:
+		return "?"
+	}
+}
 
-			case <-quit:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
-
-	return quit
+type PaginationOptions struct {
+	Take   *int32     `json:"take"`
+	Skip   *int32     `json:"skip"`
+	SortBy *SortOrder `json:"sortBy"`
 }

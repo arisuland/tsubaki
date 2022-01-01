@@ -23,14 +23,14 @@ type Query {
     # @return [Array<Subproject>] ~ A list of subprojects that
     # belong in this [Project]. If none were registered, then
     # this will be an empty array.
-#    subprojects(projectId: String!): [Subproject!]!
-#
-#    # Retrieves the list of projects for any user by their [uid].
-#    # This query also includes pagination options for easily
-#    # pagination.
-#    projects(uid: String!, pagination: PaginationOptions): [Project!]!
-#
-#    # Returns the access tokens registered to this user.
+#    subprojects(projectId: String!, pagination: PaginationOptions): [Subproject!]!
+
+    # Retrieves the list of projects for any user by their [uid].
+    # This query also includes pagination options for easily
+    # pagination.
+    projects(pagination: PaginationOptions): [Project!]!
+
+#    # Returns the access tokens registered to this current user.
 #    accessTokens: [AccessToken!]!
 #
 #    # Returns a project's metadata with the provided [id].
@@ -52,7 +52,7 @@ type Query {
 
     # Returns the user information that is currently logged in.
     # This returns `null` if no user was registered.
-#    me: User
+    me: SelfUser
 }
 
 # Mutations are a way to modify any Tsubaki object, but most mutations require
@@ -103,6 +103,45 @@ type Mutation {
 
 # Represents a user account.
 type User {
+    # The user's description that is embedded on the site. Tells a bit
+    # about themself.
+    description: String
+
+    # Returns a DateTime on when the user has updated their account.
+    updatedAt:   String!
+
+    # Returns a DateTime on when the user has created their account.
+    createdAt:   String!
+
+    # Returns a list of projects created by the user.
+    projects:    [Project!]!
+
+    # The user's unique username.
+    username:    String!
+
+    # If this user has been disabled by a moderator, administrator,
+    # or they disabled it on their own. You can check for the last one
+    # with the UserFlags.DISABLED flag in User.flags
+    disabled:    Boolean!
+
+    # Returns the flags of a User, this can represent their permissions
+    # globally from Arisu.
+    flags:       Int!
+
+    # The user's name that is embedded on the site.
+    name:        String
+
+    # Snowflake of when this User was generated in.
+    id:          String!
+}
+
+type SelfUser {
+    # Returns the expiration date of this user.
+    sessionExpiresIn: String!
+
+    # Returns the session type for this user.
+    sessionType: String!
+
     # The user's description that is embedded on the site. Tells a bit
     # about themself.
     description: String
@@ -242,13 +281,13 @@ type Error {
 #    # The [User] that this [AccessToken] belongs to.
 #    user: User!
 #}
-#
-## Options object for pagination of any [Project]s.
-#input PaginationOptions {
-#    take: Int
-#    skip: Int
-#    sortBy: SortOrder
-#}
+
+# Options object for pagination of any [Project]s.
+input PaginationOptions {
+    take: Int
+    skip: Int
+    sortBy: SortOrder
+}
 
 # UpdateUserArgs is a input field to update a [User].
 input UpdateUserArgs {
@@ -318,12 +357,12 @@ input UpdateUserArgs {
 #    # update a project or subproject's information
 #    REPO_UPDATE
 #}
-#
-## The sorting order for pagination-based queries.
-#enum SortOrder {
-#    # Ascending order
-#    ASC
-#
-#    # Descending order
-#    DESC
-#}
+
+# The sorting order for pagination-based queries.
+enum SortOrder {
+    # Ascending order
+    ASC
+
+    # Descending order
+    DESC
+}

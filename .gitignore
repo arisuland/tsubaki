@@ -512,3 +512,4 @@ config.yml
 build/
 data/
 .env
+.profile

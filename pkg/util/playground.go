@@ -26,7 +26,7 @@ const PlaygroundTemplate = `
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Nino - GraphQL Playground</title>
+        <title>Arisu &bull; GraphQL Playground</title>
         <meta charset="UTF-8" />
         <link rel="shortcut icon" href="https://cdn.floofy.dev/images/trans.png" />
         <link rel="icon" href="https://cdn.floofy.dev/images/trans.png" />

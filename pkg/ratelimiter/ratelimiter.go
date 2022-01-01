@@ -46,7 +46,7 @@ func (r Ratelimit) Exceeded() bool {
 }
 
 func (r Ratelimit) Expired() bool {
-	return r.ResetTime.UnixNano() < time.Now().UnixNano()
+	return time.Now().UnixNano() > r.ResetTime.UnixNano()
 }
 
 type Ratelimiter struct {

@@ -1,5 +1,5 @@
 // ☔ Arisu: Translation made with simplicity, yet robust.
-// Copyright (C) 2020-2021 Noelware
+// Copyright (C) 2020-2022 Noelware
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import (
 
 type versionResponse struct {
 	CommitHash string `json:"commit_hash"`
+	BuildDate  string `json:"build_date"`
 	Version    string `json:"version"`
 }
 
@@ -33,6 +34,7 @@ func NewVersionRouter() chi.Router {
 	router.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		util.WriteJson(w, 200, versionResponse{
 			CommitHash: pkg.CommitHash,
+			BuildDate:  pkg.BuildDate,
 			Version:    pkg.Version,
 		})
 	})

@@ -1,5 +1,5 @@
 // ☔ Arisu: Translation made with simplicity, yet robust.
-// Copyright (C) 2020-2021 Noelware
+// Copyright (C) 2020-2022 Noelware
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -32,6 +32,21 @@ type User struct {
 	Flags       int32     `json:"flags"`
 	Name        *string   `json:"name"`
 	ID          string    `json:"id"`
+}
+
+// SelfUser is the user metadata with the session metadata
+type SelfUser struct {
+	SessionExpiresIn string    `json:"session_expires_in"`
+	SessionType      string    `json:"session_type"`
+	Description      *string   `json:"description"`
+	UpdatedAt        string    `json:"updated_at"`
+	CreatedAt        string    `json:"created_at"`
+	Username         string    `json:"username"`
+	Disabled         bool      `json:"disabled"`
+	Projects         []Project `json:"projects"`
+	Flags            int32     `json:"flags"`
+	Name             *string   `json:"name"`
+	ID               string    `json:"id"`
 }
 
 // FromUserModel returns a new User entity based off the db result.

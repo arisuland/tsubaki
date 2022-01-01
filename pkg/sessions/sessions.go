@@ -1,5 +1,5 @@
 // ☔ Arisu: Translation made with simplicity, yet robust.
-// Copyright (C) 2020-2021 Noelware
+// Copyright (C) 2020-2022 Noelware
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -42,7 +42,17 @@ type response struct {
 // but subject is to change.
 type sessionType string
 
-var web sessionType = "desktop"
+var web sessionType = "web"
+
+func (s sessionType) String() string {
+	switch s {
+	case "web":
+		return "web"
+
+	default:
+		return "unknown"
+	}
+}
 
 // Session represents the current session that is cached in Redis.
 // Your IP is not stored here, only in ratelimiting.

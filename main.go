@@ -44,6 +44,7 @@ func main() {
 
 	if profilerEnabled != nil && *profilerEnabled {
 		logrus.Info("Profiling is now enabled on the server!")
+		pkg.EnableProfiler()
 	}
 
 	// bit of warnings for now x3
@@ -93,17 +94,57 @@ func main() {
 
 	addr := fmt.Sprintf("%s:%d", container.Config.Host, container.Config.Port)
 	server := &http.Server{
-		Addr:    addr,
-		Handler: router,
+		Addr:         addr,
+		Handler:      router,
+		WriteTimeout: 10 * time.Second,
 	}
 
 	// Listen for syscall signals so Docker can properly destroy the server
 	sigint := make(chan os.Signal, 1)
-	signal.Notify(sigint, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigint, syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		// Run the server
 		logrus.WithField("step", "server").Infof("Running Tsubaki under address '%s'", addr)
+
+		//if pkg.Profiler {
+		//	logrus.Warn("Outputting CPU and Memory profiling in .profile/ directory")
+		//	_, err := os.Stat("./.profile")
+		//	if os.IsNotExist(err) {
+		//		logrus.Warn("Directory doesn't exist, creating...")
+		//		err = os.MkdirAll("./.profile", 0755)
+		//		if err != nil {
+		//			panic(err)
+		//		}
+		//	}
+		//
+		//	logrus.Info("You should see CPU + Memory profile files in the .profile directory! If you wish to create a issue on the peaks, report it @ https://github.com/arisuland/tsubaki/issues! If you wish to see it with a visualisation tool, you can run the following command: `go tool pprof ./.profile/[cpuprofile|memoryprofile].prof`")
+		//	cpuF, err := util.CreateFile("./.profile/cpuprofile.prof")
+		//	if err != nil {
+		//		panic(err)
+		//	}
+		//
+		//	defer func() {
+		//		_ = cpuF.Close()
+		//	}()
+		//
+		//	if err := pprof.StartCPUProfile(cpuF); err != nil {
+		//		panic(err)
+		//	}
+		//
+		//	f, err := util.CreateFile("./.profile/memprofile.prof")
+		//	if err != nil {
+		//		logrus.Fatal("Unable to write memory profile: ", err)
+		//		defer func() {
+		//			_ = f.Close()
+		//		}()
+		//
+		//		runtime.GC()
+		//		if err := pprof.WriteHeapProfile(f); err != nil {
+		//			logrus.Fatal("Unable to write memory profile: ", err)
+		//		}
+		//	}
+		//}
 
 		err = server.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
