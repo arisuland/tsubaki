@@ -33,6 +33,7 @@ require (
 	github.com/klauspost/compress v1.13.4 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
+	github.com/palantir/stacktrace v0.0.0-20161112013806-78658fd2d177 // indirect
 	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect

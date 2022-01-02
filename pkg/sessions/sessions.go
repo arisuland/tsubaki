@@ -200,7 +200,7 @@ func (m Manager) Get(uid string) *Session {
 
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			logrus.Warnf("User %s doesn't exist in the database anymore but sessions still exists!")
+			logrus.Warnf("User %s doesn't exist in the database anymore but sessions still exists!", uid)
 
 			err := m.redis.Connection.HDel(context.TODO(), "tsubaki:sessions", uid).Err()
 			if err != nil {
@@ -266,18 +266,43 @@ func (m Manager) Middleware(next http.Handler) http.Handler {
 			// TODO: access tokens
 			next.ServeHTTP(w, req)
 		} else if strings.HasPrefix(auth, "Session") {
-			decoded, err := DecodeToken(req.Header.Get("Authorization"))
+			// remove any spaces -> trim "Session" off the string
+			token := strings.Trim(strings.TrimPrefix(req.Header.Get("Authorization"), "Session"), " ")
+			decoded, err := DecodeToken(token)
 			if err != nil {
+				logrus.Errorf("Unable to decode token '%s': %v", token, err)
 				w.WriteHeader(406)
 				_ = json.NewEncoder(w).Encode(&response{
-					Message: fmt.Sprintf("Invalid token: %s", req.Header.Get("Authorization")),
+					Message: fmt.Sprintf("Invalid token: %s", token),
+				})
+
+				return
+			}
+
+			// validate token
+			validated, err := ValidateToken(token)
+			if err != nil {
+				logrus.Errorf("Unable to validate token '%s': %v", token, err)
+				w.WriteHeader(400)
+				_ = json.NewEncoder(w).Encode(&response{
+					Message: fmt.Sprintf("Unable to validate token %s", token),
+				})
+
+				return
+			}
+
+			if !validated {
+				logrus.Errorf("Unable to validate token '%s'", token)
+				w.WriteHeader(400)
+				_ = json.NewEncoder(w).Encode(&response{
+					Message: fmt.Sprintf("Unable to validate token %s", token),
 				})
 
 				return
 			}
 
 			// get user id from MapClaims
-			uid, ok := decoded["uid"].(string)
+			uid, ok := decoded["userId"].(string)
 			if !ok {
 				w.WriteHeader(500)
 				_ = json.NewEncoder(w).Encode(&response{
