@@ -135,12 +135,11 @@ type User {
     id:          String!
 }
 
+# SelfUser is a [User] that has a `session` property about the current
+# session details.
 type SelfUser {
-    # Returns the expiration date of this user.
-    sessionExpiresIn: String!
-
-    # Returns the session type for this user.
-    sessionType: String!
+    # Session details for this [User].
+    session: UserSession!
 
     # The user's description that is embedded on the site. Tells a bit
     # about themself.
@@ -172,6 +171,17 @@ type SelfUser {
 
     # Snowflake of when this User was generated in.
     id:          String!
+}
+
+# UserSession is the current user session that is attached
+# when querying the `me` query.
+type UserSession {
+    # How long it will expires in a ISO8601 formatted string.
+    expiresIn: String!
+
+    # The type this session originates from, at this point in time,
+    # it is only represented as "web" for now.
+    type:      String!
 }
 
 # Represents a user or organization project.

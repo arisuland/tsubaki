@@ -1,57 +1,81 @@
-VERSION=$(shell cat version.json | jq .version | tr -d '"')
-GIT_COMMIT=$(shell git rev-parse --short HEAD)
-BUILD_DATE=$(shell go run ./cmd/build-date/main.go)
+# ☔ Arisu: Translation made with simplicity, yet robust.
+# Copyright (C) 2020-2022 Noelware
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-HOME_OS ?= $(shell go env GOOS)
-ifeq ($(HOME_OS),linux)
+JQ := $(shell command -v jq 2>/dev/null)
+ifndef JQ
+	$(error "`jq` is missing. please install jq!")
+endif
+
+VERSION    := $(shell cat version.json | jq .version | tr -d '"')
+COMMIT_SHA := $(shell git rev-parse --short HEAD)
+BUILD_DATE := $(shell go run ./cmd/build-date/main.go)
+GIT_TAG    ?= $(shell git describe --tags --match "v[0-9]*")
+
+GOOS := $(shell go env GOOS)
+GOARCH := $(shell go env GOARCH)
+
+ifeq ($(GOOS), linux)
 	TARGET_OS ?= linux
-else ifeq ($(HOME_OS),darwin)
+else ifeq ($(GOOS),darwin)
 	TARGET_OS ?= darwin
-else ifeq ($(HOME_OS),windows)
+else ifeq ($(GOOS),windows)
 	TARGET_OS ?= windows
 else
-	$(error System $(LOCAL_OS) is not supported.)
+	$(error System $(GOOS) is not supported at this time)
 endif
 
-ifeq ($(HOME_OS),windows)
-	TARGET_FILE ?= ./build/tsubaki.exe
-	TARGET_FILE_DOCGEN ?= ./main
-else
-	TARGET_FILE ?= ./build/tsubaki
-	TARGET_FILE_CODEGEN ?= ./main
+EXTENSION :=
+ifeq ($(TARGET_OS),windows)
+	EXTENSION := .exe
 endif
+
+# Usage: `make deps`
+deps:
+	@echo Updating dependency tree...
+	go mod tidy
+	go mod download
+	@echo Updated dependency tree successfully.
 
 # Usage: `make build`
 build:
-	@echo Building Tsubaki...
-	go build -ldflags "-s -w -X main.version=${VERSION} -X main.commitHash=${GIT_COMMIT} -X \"main.buildDate=${BUILD_DATE}\"" -o $(TARGET_FILE)
-	@echo Successfully built Tsubaki! Use '$(TARGET_FILE) -c config.yml' to run!
+	@echo Now building Tsubaki for $(GOOS)!
+	go build -ldflags "-s -w -X arisu.land/tsubaki/internal.Version=${VERSION} arisu.land/tsubaki/internal.CommitSHA=${COMMIT_SHA} \"arisu.land/tsubaki/internal.BuildDate=${BUILD_DATE}\"" -o ./bin/tsubaki$(EXTENSION)
+	@echo Successfully built the binary. Use './bin/tsubaki$(EXTENSION) -c config.yml' to run!
 
-# Usage: `make build.docker`
-build.docker:
-	@echo Building Tsubaki Docker image...
-	docker build . -t "arisuland/tsubaki:latest" --no-cache --build-arg VERSION=${VERSION} --build-arg COMMIT_HASH=${GIT_COMMIT} --build-arg BUILD_DATE=${BUILD_DATE}
-	docker build . -t "arisuland/tsubaki:${VERSION}" --no-cache
-	@echo Done building images for latest and ${VERSION} tags!
-
+# Usage: `make clean`
 clean:
-	@echo Cleaning build/ directories
+	@echo Now cleaning project..
+	rm -rf bin/ .profile/
 	go clean
-	rm -rf build/
 	@echo Done!
 
 # Usage: `make fmt`
 fmt:
+	@echo Formatting project...
 	go fmt
+	@echo Formatted!
 
-# Usage: `make db.migrate NAME=<string>`
+# Usage: `make db.migrate NAME=...`
 db.migrate:
-	@echo Migrating development database...
+	@echo Migrating database for development...
 	go run github.com/prisma/prisma-client-go migrate dev --name=$(NAME)
 
 # Usage: `make db.fmt`
 db.fmt:
-	@echo Formatting .prisma files...
+	@echo Formatting Prisma schema...
 	go run github.com/prisma/prisma-client-go format
 
 # Usage: `make db.generate`
@@ -61,4 +85,5 @@ db.generate:
 
 # Usage: `make docgen`
 docgen:
-	go run $(TARGET_FILE_DOCGEN)
+	@echo Now building documentation schema...
+	go run ./cmd/docgen/main.go

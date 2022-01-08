@@ -7,6 +7,24 @@ generator client {
   provider = "go run github.com/prisma/prisma-client-go"
 }
 
+enum AccessTokenScope {
+  // This token is allowed to write data into any repository
+  // this user owns or has access.
+  PUBLIC_WRITE
+
+  // This token is allowed to create a repository beyond
+  // this user's behalf.
+  REPO_CREATE
+
+  // This token is allowed to delete any repositories beyond
+  // this user's behalf.
+  REPO_DELETE
+
+  // This token is allowed to modify any data of a repository
+  // beyond this user's behalf.
+  REPO_UPDATE
+}
+
 model User {
   accessTokens AccessToken[]
   description  String?
@@ -39,10 +57,12 @@ model Project {
 }
 
 model AccessToken {
-  ownerId String @unique @map("owner_id")
-  owner   User   @relation(fields: [ownerId], references: [id])
-  token   String
-  id      String @id
+  expiresIn DateTime?
+  ownerId   String             @unique @map("owner_id")
+  scopes    AccessTokenScope[]
+  owner     User               @relation(fields: [ownerId], references: [id])
+  token     String
+  id        String             @id
 
   @@map("access_tokens")
 }
