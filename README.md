@@ -315,10 +315,10 @@ redis:
 > Since it's for indexing project and user names to use for the search bar, this will be under the [search](https://docs.arisu.land/graphql/queries#search)
 query which is ***not authenticated*** but API requests have a ratelimiter!
 
-### Q. Why Kafka over <your opinion>?
+### Q. Why Kafka over {your opinion}?
 > Because Kafka will be more stabilized when using multiple Kafka brokers rather than <insert service here>. :3
 
-### Q. Why Go over <insert new tech here>?
+### Q. Why Go over {insert new tech here}?
 > Personally, I really like Go for creating backend applications! I could've used Rust but there was no libraries for my use case
 > that I could find (e.g. having Sentinel support with Redis)
 
