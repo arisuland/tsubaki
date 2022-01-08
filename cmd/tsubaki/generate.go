@@ -14,46 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package util
+package tsubaki
 
 import (
-	"arisu.land/tsubaki/internal"
-	"html/template"
-	"io/ioutil"
-	"os"
-	"runtime"
+	"arisu.land/tsubaki/util"
+	"errors"
+	"fmt"
+	"github.com/spf13/cobra"
 )
 
-type BannerTemplateData struct {
-	Telemetry  bool
-	CommitHash string
-	Version    string
-	BuildDate  string
-	GoVersion  string
-}
+func newGenerateCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "generate",
+		Short: "Generates a new secret key base for JWT authentication.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			hash := util.GenerateHash(32)
+			if hash == "" {
+				return errors.New("unable to generate, try again later")
+			}
 
-func PrintBanner() {
-	contents, err := ioutil.ReadFile("./assets/banner.txt")
-	if err != nil {
-		panic(err)
-	}
-
-	value := string(contents)
-	t := template.New("banner template")
-
-	data := BannerTemplateData{
-		Version:    internal.Version,
-		CommitHash: internal.CommitSHA,
-		BuildDate:  internal.BuildDate,
-		GoVersion:  runtime.Version(),
-	}
-
-	ta, err := t.Parse(value)
-	if err != nil {
-		panic(err)
-	}
-
-	if err := ta.Execute(os.Stdout, data); err != nil {
-		panic(err)
+			fmt.Println(hash)
+			return nil
+		},
 	}
 }

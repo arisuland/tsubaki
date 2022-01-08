@@ -36,14 +36,16 @@ var format = "Jan 02, 2006 - 15:04:05 MST"
 
 // NewFormatter creates a new Formatter instance.
 func NewFormatter() *Formatter {
-	var colorsEnabled = true
+	var disabledColors = false
 	if os.Getenv("TSUBAKI_DISABLE_COLORS") != "" {
-		colorsEnabled = false
+		disabledColors = true
 	}
 
-	return &Formatter{
-		DisableColors: colorsEnabled,
+	f := &Formatter{
+		DisableColors: disabledColors,
 	}
+
+	return f
 }
 
 // Format renders a single log entry for logrus.
@@ -57,9 +59,9 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	b := &bytes.Buffer{}
 
 	if f.DisableColors {
-		_, _ = fmt.Fprintf(b, "[%s] ", entry.Time.Format(format))
+		fmt.Fprintf(b, "[%s] ", entry.Time.Format(format))
 	} else {
-		_, _ = fmt.Fprintf(b, "\x1b[38;2;134;134;134m%s \x1b[0m", entry.Time.Format(format))
+		fmt.Fprintf(b, "\x1b[38;2;134;134;134m[%s] \x1b[0m", entry.Time.Format(format))
 	}
 
 	l := strings.ToUpper(entry.Level.String())
@@ -73,11 +75,10 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 
 	if len(fields) != 0 {
 		for f, v := range fields {
-			_, _ = fmt.Fprintf(b, "[%s=%v] ", f, v)
+			fmt.Fprintf(b, "[%s=%v] ", f, v)
 		}
 	}
 
-	b.WriteString(" ")
 	if entry.HasCaller() {
 		var pkg string
 		if strings.HasPrefix(entry.Caller.Function, "arisu.land/tsubaki") {
@@ -87,12 +88,10 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 		}
 
 		if f.DisableColors {
-			_, _ = fmt.Fprintf(b, "[%s (%s:%d)] ", pkg, entry.Caller.File, entry.Caller.Line)
+			fmt.Fprintf(b, "[%s (%s:%d)] ", pkg, entry.Caller.File, entry.Caller.Line)
 		} else {
-			_, _ = fmt.Fprintf(b, "\x1b[38;2;134;134;134m[%s (%s:%d)]\x1b[0m", pkg, entry.Caller.File, entry.Caller.Line)
+			fmt.Fprintf(b, "\x1b[38;2;134;134;134m[%s (%s:%d)]\x1b[0m ", pkg, entry.Caller.File, entry.Caller.Line)
 		}
-
-		b.WriteString(" ")
 	}
 
 	b.WriteString(strings.TrimSpace(entry.Message))

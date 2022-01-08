@@ -28,7 +28,7 @@ type Query {
     # Retrieves the list of projects for any user by their [uid].
     # This query also includes pagination options for easily
     # pagination.
-    projects(pagination: PaginationOptions): [Project!]!
+#    projects(pagination: PaginationOptions): [Project!]!
 
 #    # Returns the access tokens registered to this current user.
 #    accessTokens: [AccessToken!]!
@@ -48,26 +48,26 @@ type Query {
     # @return [User?] ~ Returns the user's metadata excluding
     # masked information (password, email) or `null` if nothing
     # was found.
-    user(id: String!): User
+#    user(id: String!): User
 
     # Returns the user information that is currently logged in.
     # This returns `null` if no user was registered.
-    me: SelfUser
+#    me: SelfUser
 }
 
 # Mutations are a way to modify any Tsubaki object, but most mutations require
 # authentication. Read more about authentication on our documentation:
 # https://docs.arisu.land/graphql#authentication
-type Mutation {
+#type Mutation {
     # Re-enables the user's account.
-    reenableUser: Boolean!
+#    reenableUser: Boolean!
 
     # Update a user's metadata.
-    updateUser(args: UpdateUserArgs!): Boolean!
+#    updateUser(args: UpdateUserArgs!): Boolean!
 
     # Disable the current user. This doesn't completely wipe all the data,
     # it only locks the user from their account.
-    disableUser: Boolean!
+#    disableUser: Boolean!
 
     # Deletes the current user from the database, in which, it will:
     #   - delete all metadata
@@ -78,7 +78,7 @@ type Mutation {
     # [disableUser] mutation.
     #
     # @returns [Boolean] ~ If the action succeeded.
-    deleteUser: Boolean!
+#    deleteUser: Boolean!
 
     # Creates a new user and returns a [User] object.
     #
@@ -87,10 +87,10 @@ type Mutation {
     # @param username ~ The unique username
     # @returns [User?] ~ Returns a new [User] object or `nil` if any
     # errors occur.
-    createUser(email: String!, password: String!, username: String!): User
+#    createUser(email: String!, password: String!, username: String!): User
 
     # Logs out the current user and deletes their session token.
-    logout: Boolean!
+#    logout: Boolean!
 
     # Login in the current user and creates a session token for them that
     # lasts for 2 days.
@@ -98,120 +98,120 @@ type Mutation {
     # @param usernameOrEmail ~ The username or the email to sign-in as.
     # @param password ~ The raw password to use to sign-in.
     # @return [LoginResult] ~ The result of this login.
-    login(usernameOrEmail: String!, password: String!): LoginResult!
-}
+#    login(usernameOrEmail: String!, password: String!): LoginResult!
+#}
 
 # Represents a user account.
-type User {
-    # The user's description that is embedded on the site. Tells a bit
-    # about themself.
-    description: String
-
-    # Returns a DateTime on when the user has updated their account.
-    updatedAt:   String!
-
-    # Returns a DateTime on when the user has created their account.
-    createdAt:   String!
-
-    # Returns a list of projects created by the user.
-    projects:    [Project!]!
-
-    # The user's unique username.
-    username:    String!
-
-    # If this user has been disabled by a moderator, administrator,
-    # or they disabled it on their own. You can check for the last one
-    # with the UserFlags.DISABLED flag in User.flags
-    disabled:    Boolean!
-
-    # Returns the flags of a User, this can represent their permissions
-    # globally from Arisu.
-    flags:       Int!
-
-    # The user's name that is embedded on the site.
-    name:        String
-
-    # Snowflake of when this User was generated in.
-    id:          String!
-}
+#type User {
+#    # The user's description that is embedded on the site. Tells a bit
+#    # about themself.
+#    description: String
+#
+#    # Returns a DateTime on when the user has updated their account.
+#    updatedAt:   String!
+#
+#    # Returns a DateTime on when the user has created their account.
+#    createdAt:   String!
+#
+#    # Returns a list of projects created by the user.
+#    projects:    [Project!]!
+#
+#    # The user's unique username.
+#    username:    String!
+#
+#    # If this user has been disabled by a moderator, administrator,
+#    # or they disabled it on their own. You can check for the last one
+#    # with the UserFlags.DISABLED flag in User.flags
+#    disabled:    Boolean!
+#
+#    # Returns the flags of a User, this can represent their permissions
+#    # globally from Arisu.
+#    flags:       Int!
+#
+#    # The user's name that is embedded on the site.
+#    name:        String
+#
+#    # Snowflake of when this User was generated in.
+#    id:          String!
+#}
 
 # SelfUser is a [User] that has a `session` property about the current
 # session details.
-type SelfUser {
+#type SelfUser {
     # Session details for this [User].
-    session: UserSession!
-
-    # The user's description that is embedded on the site. Tells a bit
-    # about themself.
-    description: String
-
-    # Returns a DateTime on when the user has updated their account.
-    updatedAt:   String!
-
-    # Returns a DateTime on when the user has created their account.
-    createdAt:   String!
-
-    # Returns a list of projects created by the user.
-    projects:    [Project!]!
-
-    # The user's unique username.
-    username:    String!
-
-    # If this user has been disabled by a moderator, administrator,
-    # or they disabled it on their own. You can check for the last one
-    # with the UserFlags.DISABLED flag in User.flags
-    disabled:    Boolean!
-
-    # Returns the flags of a User, this can represent their permissions
-    # globally from Arisu.
-    flags:       Int!
-
-    # The user's name that is embedded on the site.
-    name:        String
-
-    # Snowflake of when this User was generated in.
-    id:          String!
-}
+#    session: UserSession!
+#
+#    # The user's description that is embedded on the site. Tells a bit
+#    # about themself.
+#    description: String
+#
+#    # Returns a DateTime on when the user has updated their account.
+#    updatedAt:   String!
+#
+#    # Returns a DateTime on when the user has created their account.
+#    createdAt:   String!
+#
+#    # Returns a list of projects created by the user.
+#    projects:    [Project!]!
+#
+#    # The user's unique username.
+#    username:    String!
+#
+#    # If this user has been disabled by a moderator, administrator,
+#    # or they disabled it on their own. You can check for the last one
+#    # with the UserFlags.DISABLED flag in User.flags
+#    disabled:    Boolean!
+#
+#    # Returns the flags of a User, this can represent their permissions
+#    # globally from Arisu.
+#    flags:       Int!
+#
+#    # The user's name that is embedded on the site.
+#    name:        String
+#
+#    # Snowflake of when this User was generated in.
+#    id:          String!
+#}
 
 # UserSession is the current user session that is attached
 # when querying the `me` query.
-type UserSession {
-    # How long it will expires in a ISO8601 formatted string.
-    expiresIn: String!
-
-    # The type this session originates from, at this point in time,
-    # it is only represented as "web" for now.
-    type:      String!
-}
+#type UserSession {
+#    # How long it will expires in a ISO8601 formatted string.
+#    expiresIn: String!
+#
+#    # The type this session originates from, at this point in time,
+#    # it is only represented as "web" for now.
+#    type:      String!
+#}
 
 # Represents a user or organization project.
-type Project {
-    # The project's description that is embedded on the site.
-    description: String
-
-    # Returns a ISO-8601 formatted date on when the user has updated their account.
-    updatedAt:   String!
-
-    # Returns a list of [Subproject]s available in this parent [Project].
-    # This will be an empty array if none were created.
-#    subprojects: [Subproject!]!
-
-    # Returns a ISO-8601 formatted date on when the user has created their account.
-    createdAt:   String!
-
-    # The owner of this project.
-    owner:       User!
-
-    # Returns the flags of a Project, this can represent their permissions
-    # globally from Arisu.
-    flags:       Int!
-
-    # The name of the project.
-    name:        String!
-
-    # Snowflake of when this User was generated in.
-    id:          String!
-}
+#type Project {
+#    # The project's description that is embedded on the site.
+#    description: String
+#
+#    # Returns a ISO-8601 formatted date on when the user has updated their account.
+#    updatedAt:   String!
+#
+#    # Returns a list of [Subproject]s available in this parent [Project].
+#    # This will be an empty array if none were created.
+##    subprojects: [Subproject!]!
+#
+#    # Returns a ISO-8601 formatted date on when the user has created their account.
+#    createdAt:   String!
+#
+#    # The owner of this project.
+#    owner:       User!
+#
+#    # Returns the flags of a Project, this can represent their permissions
+#    # globally from Arisu.
+#    flags:       Int!
+#
+#    # The name of the project.
+#    name:        String!
+#
+#    # Snowflake of when this User was generated in.
+#    id:          String!
+#}
 
 ## Subproject is a project that lives under a parent [Project]. Think of this
 ## as the parent project as a monorepo with multiple subprojects.
@@ -248,26 +248,26 @@ type Project {
 #    errors: [Error!]!
 #}
 
-type LoginResult {
-    # If this [Result] was a success or not.
-    success: Boolean!
-
-    # A list of errors of what went wrong.
-    errors: [Error!]!
-
-    # The session token that expires every 2 days.
-    token: String!
-}
-
-# Error is a object that shows the errors in a [Result].
-type Error {
-    # The message on why it errored.
-    message: String!
-
-    # The code that this [Error] is associated with. A list
-    # of errors can be found on our [docs](https://docs.arisu.land/graphql/reference#error-codes).
-    code: Int!
-}
+#type LoginResult {
+#    # If this [Result] was a success or not.
+#    success: Boolean!
+#
+#    # A list of errors of what went wrong.
+#    errors: [Error!]!
+#
+#    # The session token that expires every 2 days.
+#    token: String!
+#}
+#
+## Error is a object that shows the errors in a [Result].
+#type Error {
+#    # The message on why it errored.
+#    message: String!
+#
+#    # The code that this [Error] is associated with. A list
+#    # of errors can be found on our [docs](https://docs.arisu.land/graphql/reference#error-codes).
+#    code: Int!
+#}
 
 # AccessToken represents an access token from an oauth2 application
 # or created by the supplied [User].
@@ -293,25 +293,25 @@ type Error {
 #}
 
 # Options object for pagination of any [Project]s.
-input PaginationOptions {
-    take: Int
-    skip: Int
-    sortBy: SortOrder
-}
-
-# UpdateUserArgs is a input field to update a [User].
-input UpdateUserArgs {
-    # Sets the newly description of a [User]. Must be 240 characters
-    # or shorter.
-    description: String
-
-    # The new username to set. If the username is already taken,
-    # it will error.
-    username: String
-
-    # The name to use for this user to show on the site.
-    name: String
-}
+#input PaginationOptions {
+#    take: Int
+#    skip: Int
+#    sortBy: SortOrder
+#}
+#
+## UpdateUserArgs is a input field to update a [User].
+#input UpdateUserArgs {
+#    # Sets the newly description of a [User]. Must be 240 characters
+#    # or shorter.
+#    description: String
+#
+#    # The new username to set. If the username is already taken,
+#    # it will error.
+#    username: String
+#
+#    # The name to use for this user to show on the site.
+#    name: String
+#}
 
 ## NewProjectArgs is a input field to create a new [Project].
 #input NewProjectArgs {

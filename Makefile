@@ -14,11 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-JQ := $(shell command -v jq 2>/dev/null)
-ifndef JQ
-	$(error "`jq` is missing. please install jq!")
-endif
-
 VERSION    := $(shell cat version.json | jq .version | tr -d '"')
 COMMIT_SHA := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell go run ./cmd/build-date/main.go)
@@ -51,8 +46,8 @@ deps:
 
 # Usage: `make build`
 build:
-	@echo Now building Tsubaki for $(GOOS)!
-	go build -ldflags "-s -w -X arisu.land/tsubaki/internal.Version=${VERSION} arisu.land/tsubaki/internal.CommitSHA=${COMMIT_SHA} \"arisu.land/tsubaki/internal.BuildDate=${BUILD_DATE}\"" -o ./bin/tsubaki$(EXTENSION)
+	@echo Now building Tsubaki for platform $(GOOS)/$(GOARCH)!
+	go build -ldflags "-s -w -X arisu.land/tsubaki/internal.Version=${VERSION} -X arisu.land/tsubaki/internal.CommitSHA=${COMMIT_SHA} -X \"arisu.land/tsubaki/internal.BuildDate=${BUILD_DATE}\"" -o ./bin/tsubaki$(EXTENSION)
 	@echo Successfully built the binary. Use './bin/tsubaki$(EXTENSION) -c config.yml' to run!
 
 # Usage: `make clean`

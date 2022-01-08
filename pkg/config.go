@@ -17,7 +17,6 @@
 package pkg
 
 import (
-	"arisu.land/tsubaki/cmd/tsubaki"
 	"arisu.land/tsubaki/pkg/storage"
 	"arisu.land/tsubaki/util"
 	"errors"
@@ -244,11 +243,19 @@ type StorageConfig struct {
 	S3 *storage.S3StorageConfig `yaml:"s3"`
 }
 
-func NewConfig() (*Config, error) {
-	if cfg, err := loadConfig(); err != nil {
+func NewConfig(path string) (*Config, error) {
+	if cfg, err := loadConfig(path); err != nil {
 		return nil, err
 	} else {
 		return cfg, err
+	}
+}
+
+func TestConfigFromPath(path string) error {
+	if err := testConfig(path); err != nil {
+		return err
+	} else {
+		return nil
 	}
 }
 
@@ -390,43 +397,74 @@ func checkIfS3EnvExists() bool {
 	return provider != "" && region != ""
 }
 
-func loadConfig() (*Config, error) {
+func testConfig(path string) error {
+	contents, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var config Config
+	err = yaml.Unmarshal(contents, &config)
+	if err != nil {
+		return nil
+	}
+
+	if checkIfMissing("GO_ENV", config.Environment != "") {
+		return MissingEnvironmentError
+	}
+
+	validEnvs := []string{"development", "production"}
+	var valid = false
+
+	for _, key := range validEnvs {
+		if key == config.Environment.String() {
+			valid = true
+		}
+	}
+
+	if !valid {
+		return InvalidEnvironmentError
+	}
+
+	return nil
+}
+
+func loadConfig(path string) (*Config, error) {
 	logrus.Info("Loading configuration...")
-	if tsubaki.GlobalFlags.ConfigFile == nil {
+	if path != "" {
 		// Check if it is in the root directory
 		_, err := os.Stat("./config.yml")
 		if !os.IsNotExist(err) {
 			logrus.Info("Found configuration in root, loading from that...")
-			owo := "./config.yml"
-			tsubaki.GlobalFlags.ConfigFile = &owo
-		}
-
-		logrus.Warn("Unable to find configuration in root directory or with `-c` flag. Loading from environment variables...")
-		c, err := loadFromEnv()
-		if err != nil {
-			return nil, err
-		}
-
-		// Check if it is still empty
-		if c.SecretKeyBase == "" {
-			hash := util.GenerateHash(32)
-			if hash == "" {
-				return nil, errors.New("unable to generate hash")
+			path = "./config.yml"
+		} else {
+			logrus.Warn("Unable to find configuration in root directory or with `-c` flag. Loading from environment variables...")
+			c, err := LoadFromEnv()
+			if err != nil {
+				return nil, err
 			}
 
-			logrus.Warnf(
-				"it is recommended to store this generated key for JWT authentication. After a restart, all JWTs will fail: %s",
-				hash,
-			)
+			// Check if it is still empty
+			if c.SecretKeyBase == "" {
+				hash := util.GenerateHash(32)
+				if hash == "" {
+					return nil, errors.New("unable to generate hash")
+				}
 
-			c.SecretKeyBase = hash
+				logrus.Warnf(
+					"it is recommended to store this generated key for JWT authentication. After a restart, all JWTs will fail: %s",
+					hash,
+				)
+
+				c.SecretKeyBase = hash
+			}
+
+			return c, nil
 		}
-
-		return c, nil
 	}
 
-	logrus.Infof("Found configuration in path %s! Now loading...", *tsubaki.GlobalFlags.ConfigFile)
-	contents, err := ioutil.ReadFile(*tsubaki.GlobalFlags.ConfigFile)
+	logrus.Infof("Found configuration in path %s! Now loading...", path)
+	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +475,7 @@ func loadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	if checkIfMissing("GO_ENV", config.Environment == "") {
+	if checkIfMissing("GO_ENV", config.Environment != "") {
 		return nil, MissingEnvironmentError
 	}
 
@@ -478,7 +516,7 @@ func loadConfig() (*Config, error) {
 	return &config, nil
 }
 
-func loadFromEnv() (*Config, error) {
+func LoadFromEnv() (*Config, error) {
 	logrus.Info("Now loading configuration from environment variables...")
 
 	// Load from .env if the file exists

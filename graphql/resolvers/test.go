@@ -14,12 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package internal
+package resolvers
 
-// GlobalContainer represents the global Container instance
-// that is constructed using the NewContainer function.
-var GlobalContainer *Container = nil
-
-// Container is a object that holds all the dependencies for every part
-// of Tsubaki's lifecycle.
-type Container struct{}
+func (*Resolver) Hello() string {
+	return "hello world!"
+}

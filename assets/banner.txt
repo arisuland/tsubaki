@@ -14,6 +14,7 @@
        ######/ / #### /    ######/ ##   ####/    ####/ ##  ##   ### / ### /
          ###      ###/      #####   ##   ###      ###   ##  ##   ##/   ##/
 
-~ Version: {{ .Version }} ~ Commit SHA: {{ .CommitHash }} ~ Build Date: {{ .BuildDate }} ~
-           Released by Noelware under the GPL-3.0 License.
-      Report bugs here: https://github.com/arisuland/tsubaki/issues
+~ Version: {{ .Version }} ~ Go Version: {{ .GoVersion }} ~ Commit SHA: {{ .CommitHash }} ~ Build Date: {{ .BuildDate }} ~
+
+                    Released by Noelware under the GPL-3.0 License.
+              Report bugs here: https://github.com/arisuland/tsubaki/issues

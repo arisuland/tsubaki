@@ -17,6 +17,8 @@
 package tsubaki
 
 import (
+	"arisu.land/tsubaki/server"
+	"arisu.land/tsubaki/util"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -31,16 +33,16 @@ type InputFlags struct {
 
 	// ConfigFile returns the configuration file, in the Docker container,
 	// this is usually `/usr/share/arisu/tsubaki/config.yml`. Default is `./config.yml`
-	ConfigFile *string
+	ConfigFile string
 }
 
 var rootCmd = &cobra.Command{
-	Use:               "tsubaki",
+	Use:               "tsubaki [command] [...args]",
 	Short:             "Tsubaki is the core heart of Arisu.",
 	RunE:              run,
 	PersistentPreRunE: preRun,
-	Long: `
-Tsubaki is the core backend for Arisu, this is what powers all services like:
+	SilenceUsage:      true,
+	Long: `Tsubaki is the core backend for Arisu, this is what powers all services like:
 	- Fubuki (frontend)
 	- GitHub Bot (automative microservice for GitHub <- -> Arisu)
 
@@ -52,15 +54,16 @@ the "version" field or you can run "tsubaki version" to retrieve the current ver
 `,
 }
 
-var GlobalFlags = new(InputFlags)
+var globalFlags = new(InputFlags)
 
 func Execute() int {
 	// setup flags
-	rootCmd.Flags().BoolVarP(&GlobalFlags.Verbose, "verbose", "d", false, "")
-	rootCmd.Flags().StringVarP(GlobalFlags.ConfigFile, "config-file", "c", "./config.yml", "")
+	rootCmd.Flags().BoolVarP(&globalFlags.Verbose, "verbose", "d", false, "if debug logging should be enabled or not.")
+	rootCmd.Flags().StringVarP(&globalFlags.ConfigFile, "config-file", "c", "./config.yml", "the configuration file to use when starting up the server")
 	rootCmd.AddCommand(
 		newVersionCommand(),
 		newValidateCommand(),
+		newGenerateCommand(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -73,25 +76,17 @@ func Execute() int {
 func run(_ *cobra.Command, args []string) error {
 	// run the server if there is no args
 	if len(args) == 0 {
-		return nil
+		util.PrintBanner()
+
+		srv := server.NewServer()
+		return srv.Start(globalFlags.ConfigFile)
 	}
 
 	return fmt.Errorf("unknown tsubaki command %q", "tsubaki "+args[0])
 }
 
-func preRun(cmd *cobra.Command, args []string) error {
-	parent := cmd.Root()
-	if parent != nil {
-		prerun := parent.PersistentPreRunE
-		if prerun != nil {
-			err := prerun(cmd, args)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	if GlobalFlags.Verbose {
+func preRun(_ *cobra.Command, _ []string) error {
+	if globalFlags.Verbose {
 		logrus.SetLevel(logrus.TraceLevel)
 	}
 

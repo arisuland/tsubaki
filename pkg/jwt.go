@@ -16,55 +16,62 @@
 
 package pkg
 
-//func NewToken(uid string) (string, error) {
-//	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
-//		"userId": uid,
-//	})
-//
-//	signedToken, err := token.SignedString([]byte(infra.GlobalContainer.Config.SecretKeyBase))
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	return signedToken, nil
-//}
-//
-//func ValidateToken(token string) (bool, error) {
-//	t, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-//		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-//			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-//		}
-//
-//		return []byte(infra.GlobalContainer.Config.SecretKeyBase), nil
-//	})
-//
-//	if err != nil {
-//		return false, err
-//	}
-//
-//	if _, ok := t.Claims.(jwt.MapClaims); ok && t.Valid {
-//		return true, nil
-//	}
-//
-//	return false, errors.New("unknown error has occurred")
-//}
-//
-//func DecodeToken(token string) (jwt.MapClaims, error) {
-//	t, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-//		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-//			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-//		}
-//
-//		return []byte(infra.GlobalContainer.Config.SecretKeyBase), nil
-//	})
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	if claims, ok := t.Claims.(jwt.MapClaims); ok && t.Valid {
-//		return claims, nil
-//	}
-//
-//	return nil, errors.New("unknown error has occurred")
-//}
+import (
+	"errors"
+	"fmt"
+	"github.com/golang-jwt/jwt/v4"
+)
+
+// NewToken creates a new JWT token with the user's ID as the mapped claims.
+func NewToken(uid string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
+		"user_id": uid,
+	})
+
+	signed, err := token.SignedString([]byte(GlobalContainer.Config.SecretKeyBase))
+	if err != nil {
+		return "", err
+	}
+
+	return signed, nil
+}
+
+func ValidateToken(token string) (bool, error) {
+	t, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return []byte(GlobalContainer.Config.SecretKeyBase), nil
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	if _, ok := t.Claims.(jwt.MapClaims); ok && t.Valid {
+		return true, nil
+	}
+
+	return false, errors.New("unknown error has occurred")
+}
+
+func DecodeToken(token string) (jwt.MapClaims, error) {
+	t, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return []byte(GlobalContainer.Config.SecretKeyBase), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := t.Claims.(jwt.MapClaims); ok && t.Valid {
+		return claims, nil
+	}
+
+	return nil, errors.New("unknown error has occurred")
+}
