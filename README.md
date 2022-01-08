@@ -101,7 +101,7 @@ $ cd tsubaki && go get
 $ make build
 
 # 4. Run the binary
-$ ./build/tsubaki -c config.yml # Add `.exe` if running on Windows
+$ ./bin/tsubaki -c config.yml # Add `.exe` if running on Windows
 ```
 
 ## Configuration
@@ -124,30 +124,6 @@ registrations: Boolean
 # Default: nil
 # Variable: TSUBAKI_SENTRY_DSN
 sentry_dsn: String?
-
-# Returns the site-name to embed on the navbar of your Fubuki instance.
-#
-# Type: String?
-# Default: Arisu
-# Variable: TSUBAKI_SITE_NAME
-site_name: String?
-
-# Returns the site icon to use when displayed on the website.
-#
-# Type: String?
-# Default: https://cdn.arisu.land/lotus.png
-# Variable: TSUBAKI_SITE_ICON
-site_icon: String?
-
-# Returns a number on how many retries before panicking on an unavailable port
-# to run Tsubaki on. To disable this, use `-1` as the value.
-#
-# Type: Int
-# Default: 5
-# Max: 15
-# Min: -1
-# Variable: TSUBAKI_PORT_RETRY
-port_retry: Int
 
 # Uses a host URI when launching the HTTP server. If you wish to keep Tsubaki
 # running internally, you can use `127.0.0.1` instead of the default `0.0.0.0`.
@@ -339,12 +315,12 @@ redis:
 > Since it's for indexing project and user names to use for the search bar, this will be under the [search](https://docs.arisu.land/graphql/queries#search)
 query which is ***not authenticated*** but API requests have a ratelimiter!
 
-### Q. Why Kafka over ...
+### Q. Why Kafka over <your opinion>?
 > Because Kafka will be more stabilized when using multiple Kafka brokers rather than <insert service here>. :3
 
-### Q. Why Go over ...?
-> Personally, I really like Go for creating backend applications. I could've used Rust but there was no libraries for my use case
-> that I could find (e.g. having Sentinel support for any Redis libraries)
+### Q. Why Go over <insert new tech here>?
+> Personally, I really like Go for creating backend applications! I could've used Rust but there was no libraries for my use case
+> that I could find (e.g. having Sentinel support with Redis)
 
 ## License
 **Tsubaki** is released under the **GPL-3.0** License by Noelware. If you wish to view the whole license, read the [LICENSE](/LICENSE) file.
