@@ -22,10 +22,5 @@ set -o pipefail
 
 . /app/arisu/tsubaki/lib/liblog.sh
 
-info ""
-info "  ${BOLD}Welcome to the Tsubaki Docker container!${RESET}"
-info "  Subscribe to the project for further updates: https://github.com/arisuland/tsubaki"
-info "  Submit issues and feature requests: https://github.com/arisuland/tsubaki/issues"
-info ""
-
-exec "$@"
+info "** Starting up Tsubaki! **"
+exec "/app/arisu/tsubaki/tsubaki" $@

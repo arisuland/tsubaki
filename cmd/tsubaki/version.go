@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"runtime"
+	"strings"
 )
 
 type versionInfo struct {
@@ -48,7 +49,7 @@ func newVersionCommand() *cobra.Command {
 					Version:    internal.Version,
 					CommitSHA:  internal.CommitSHA,
 					BuildDate:  internal.BuildDate,
-					GoVersion:  runtime.Version(),
+					GoVersion:  strings.TrimPrefix(runtime.Version(), "go"),
 					GoCompiler: runtime.Compiler,
 					Platform:   fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 				}

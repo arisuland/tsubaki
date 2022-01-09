@@ -5,3 +5,4 @@ data
 .gitpod.yml
 config.yml
 docker-compose.yml
+bin
