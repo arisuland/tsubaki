@@ -83,7 +83,7 @@ type FileMetadata struct {
 	Path string `json:"path"`
 
 	// Size returns in bytes, how big the file is.
-	Size int `json:"size"`
+	Size int64 `json:"size"`
 }
 
 // UploadRequest is a object that represents a request

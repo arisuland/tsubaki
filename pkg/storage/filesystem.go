@@ -20,10 +20,13 @@ import (
 	"arisu.land/tsubaki/util"
 	"encoding/json"
 	"fmt"
+	"github.com/mushroomsir/mimetypes"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 type FilesystemProvider struct {
@@ -167,7 +170,7 @@ func (fs FilesystemProvider) GetMetadata(id string, project string) (*ProjectMet
 
 func (fs FilesystemProvider) HandleUpload(files []UploadRequest) error {
 	logrus.Infof("Told to handle %d files!", len(files))
-	//s := time.Now()
+	s := time.Now()
 
 	for _, file := range files {
 		logrus.Debugf("Taking care of file %s for project %s/%s", file.Name, file.Owner, file.Project)
@@ -179,45 +182,82 @@ func (fs FilesystemProvider) HandleUpload(files []UploadRequest) error {
 		}
 
 		logrus.Infof("Using format version %d for project %s/%s", m.FormatVersion.Int(), file.Owner, file.Project)
+
+		// Figure out the mime type
+		var mimeType string
+		if strings.Contains(file.Name, ".") {
+			mimeType = mimetypes.Lookup(file.Name)
+		} else {
+			// TODO: probably check for shell bangs (!#) to determine
+			// it also.
+			mimeType = "application/octet-stream"
+		}
+
+		logrus.Infof("Figured out that file %s has a mime type of %s.", file.Name, mimeType)
+
+		// Check if the file exists in the directory
+		// file.Name should be `folder/file.js` or `file.js` so it can be appended
+		// as `<dir>/<owner>/<project>/folder/file.js`
+		dir := fmt.Sprintf("%s/%s/%s/%s", fs.Directory, file.Owner, file.Project, file.Name)
+		_, err = os.Stat(dir)
+		if os.IsNotExist(err) {
+			logrus.Warnf("File at %s doesn't exist.", dir)
+
+			f, err := util.CreateFile(dir)
+			if err != nil {
+				logrus.Warnf("Unable to handle file creation for file %s: %v", dir, err)
+				return err
+			}
+
+			err = os.WriteFile(dir, []byte(file.Contents), 0755)
+			if err != nil {
+				logrus.Warnf("Unable to handle file update for file %s: %v", dir, err)
+				return err
+			}
+
+			// shouldn't care about files closing (for now)
+			_ = f.Close()
+		} else {
+			logrus.Infof("Updating file content for %s...", dir)
+			err = os.WriteFile(dir, []byte(file.Contents), 0755)
+			if err != nil {
+				logrus.Warnf("Unable to handle file update for file %s: %v", dir, err)
+				return err
+			}
+		}
+
+		// find metadata for file
+		index := util.FindIndex(m.Files, func(item interface{}) bool {
+			casted := item.(FileMetadata)
+			return casted.Path == file.Name
+		})
+
+		if index != -1 {
+			m.Files[index] = FileMetadata{
+				Path:        file.Name,
+				ContentType: mimeType,
+				Size:        file.Size,
+			}
+
+			bytes, err := json.Marshal(&m)
+			if err != nil {
+				logrus.Errorf("Unable to unmarshal metadata.lock file: %v", err)
+				return err
+			}
+
+			err = os.WriteFile(
+				fmt.Sprintf("%s/%s/%s/metadata.lock", fs.Directory, file.Owner, file.Project),
+				bytes,
+				0755,
+			)
+
+			if err != nil {
+				logrus.Warnf("Unable to handle file update for file %s: %v", fmt.Sprintf("%s/%s/%s/metadata.lock", fs.Directory, file.Owner, file.Project), err)
+				return err
+			}
+		}
 	}
 
+	logrus.Infof("Took %s to complete %d files.", time.Since(s).String(), len(files))
 	return nil
 }
-
-/*
-  async handle(files: File[]) {
-    for (const [index, file] of withIndex(files)) {
-      this.logger.info(`Using format version ${FilesystemStorageProvider.FORMAT_VERSION}!`);
-      let extension = mimeTypes.extension(file.metadata.contentType);
-      if (!extension) {
-        extension = '';
-        file.metadata.contentType = 'text/html';
-      }
-
-      this.logger.info(`File ${file.name} has extension ${extension} for content type ${file.metadata.contentType}`);
-      const filePath = file.name.split(sep);
-      if (extension !== '') {
-        const fileName = filePath.pop()!.split('.').shift()!;
-        filePath[filePath.length - 1] = `${fileName}.${extension}`;
-      }
-
-      await writeFile(join(this.config.directory, file.project[0], file.project[1], filePath.join(sep)), file.contents);
-      const hasFile = metadata.files.find((i) => i.path === file.name);
-      if (hasFile) {
-        const index = metadata.files.findIndex((i) => i.path === file.name);
-        if (index !== -1) {
-          metadata.files[index] = {
-            path: file.name,
-            size: file.metadata.size,
-            contentType: file.metadata.contentType,
-          };
-        }
-      }
-
-      if (index + 1 === files.length) {
-        await writeFile(metadataLockfile, JSON.stringify(metadata));
-        this.logger.info('Took care of all files (and re-wrote metadata.lock)');
-      }
-    }
-  }
-*/

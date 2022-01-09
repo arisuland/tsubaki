@@ -196,8 +196,8 @@ func (s S3StorageProvider) Name() string {
 	return "s3"
 }
 
-func (s S3StorageProvider) GetMetadata(id string, project string) *ProjectMetadata {
-	return nil
+func (s S3StorageProvider) GetMetadata(id string, project string) (*ProjectMetadata, error) {
+	return nil, nil
 }
 
 func (s S3StorageProvider) HandleUpload(files []UploadRequest) error {

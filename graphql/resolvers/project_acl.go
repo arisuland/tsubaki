@@ -16,10 +16,8 @@
 
 package resolvers
 
-import "context"
-
-func (r *Resolver) GetProjectAcls(ctx context.Context, args struct {
-	ID string
-}) error {
-	return nil
-}
+//func (r *Resolver) GetProjectAcls(ctx context.Context, args struct {
+//	ID string
+//}) error {
+//	return nil
+//}
