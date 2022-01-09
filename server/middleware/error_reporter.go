@@ -15,3 +15,57 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package middleware
+
+import (
+	"arisu.land/tsubaki/pkg"
+	"context"
+	"fmt"
+	"github.com/getsentry/sentry-go"
+	"github.com/sirupsen/logrus"
+	"net/http"
+	"time"
+)
+
+func ErrorReporter(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// if sentry wasn't found, let's just recover panic errors.
+		if pkg.GlobalContainer.Sentry == nil {
+			defer func() {
+				if err := recover(); err != nil {
+					logrus.Fatalf("Received panic on route '%s %s': %v", req.Method, req.URL.Path, err)
+				}
+			}()
+
+			next.ServeHTTP(w, req)
+			return
+		}
+
+		ctx := req.Context()
+		hub := sentry.GetHubFromContext(ctx)
+		if hub == nil {
+			hub = sentry.CurrentHub().Clone()
+			ctx = sentry.SetHubOnContext(ctx, hub)
+		}
+
+		span := sentry.StartSpan(ctx, "tsubaki.server",
+			sentry.TransactionName(fmt.Sprintf("request %s %s", req.Method, req.URL.Path)),
+			sentry.ContinueFromRequest(req),
+		)
+
+		defer span.Finish()
+		req = req.WithContext(span.Context())
+		hub.Scope().SetRequest(req)
+		defer func() {
+			if err := recover(); err != nil {
+				logrus.Fatalf("Received panic on route '%s %s': %v", req.Method, req.URL.Path, err)
+
+				eventId := hub.RecoverWithContext(context.WithValue(req.Context(), sentry.RequestContextKey, req), err)
+				if eventId != nil {
+					hub.Flush(1 * time.Second)
+				}
+			}
+		}()
+
+		next.ServeHTTP(w, req)
+	})
+}

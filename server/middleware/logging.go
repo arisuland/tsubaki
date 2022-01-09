@@ -15,3 +15,41 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package middleware
+
+import (
+	"arisu.land/tsubaki/internal"
+	"arisu.land/tsubaki/pkg/ratelimit"
+	"arisu.land/tsubaki/util"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sirupsen/logrus"
+	"net/http"
+	"time"
+)
+
+func Logging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		s := time.Now()
+		ww := middleware.NewWrapResponseWriter(w, req.ProtoMajor)
+		next.ServeHTTP(ww, req)
+
+		// skip on `/graphql` requests since they can get spammy :<
+		if req.URL.Path == "/graphql" {
+			return
+		}
+
+		code := util.GetStatusCode(ww.Status())
+		logrus.Infof("[%s] %s %s (%s) => %d %s (%d bytes) [%s]",
+			ratelimit.RealIP(req),
+			req.Method,
+			req.URL.Path,
+			req.Proto,
+			ww.Status(),
+			code,
+			ww.BytesWritten(),
+			time.Since(s).String(),
+		)
+
+		internal.RequestMetric.WithLabelValues(req.Method, req.URL.Path).Inc()
+		internal.RequestLatencyMetric.WithLabelValues(req.Method, req.URL.Path).Observe(float64(time.Since(s).Nanoseconds() / 1000000))
+	})
+}

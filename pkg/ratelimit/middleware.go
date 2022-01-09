@@ -27,7 +27,8 @@ import (
 )
 
 // https://github.com/go-chi/httprate/blob/master/httprate.go#L25-L47
-func realIP(req *http.Request) string {
+
+func RealIP(req *http.Request) string {
 	var ip string
 	if tcip := req.Header.Get("True-Client-IP"); tcip != "" {
 		ip = tcip
@@ -55,7 +56,7 @@ func realIP(req *http.Request) string {
 
 func (rl Ratelimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		limit := rl.Get(realIP(req))
+		limit := rl.Get(RealIP(req))
 		headers := w.Header()
 
 		if limit.Exceeded() {

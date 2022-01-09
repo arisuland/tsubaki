@@ -40,8 +40,8 @@ type BaseStorageProvider interface {
 	HandleUpload(files []UploadRequest) error
 
 	// GetMetadata is a function to retrieve metadata about this project. This is usually
-	// embedded under `id/project/metadata.json`.
-	GetMetadata(id string, project string) *ProjectMetadata
+	// embedded under `id/project/metadata.lock`.
+	GetMetadata(id string, project string) (*ProjectMetadata, error)
 
 	// Init is a function to call to initialize the provider.
 	Init() error

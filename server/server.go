@@ -22,6 +22,7 @@ import (
 	"arisu.land/tsubaki/pkg"
 	"arisu.land/tsubaki/pkg/ratelimit"
 	"arisu.land/tsubaki/pkg/sessions"
+	"arisu.land/tsubaki/server/middleware"
 	"arisu.land/tsubaki/server/routes"
 	"context"
 	"fmt"
@@ -77,7 +78,9 @@ func (s Server) Start(path string) error {
 	sesh := sessions.NewSessionManager(pkg.GlobalContainer.Redis, pkg.GlobalContainer.Prisma)
 
 	router.Use(rl.Middleware)
-	//router.Use(sesh.Middleware)
+	router.Use(sesh.Middleware)
+	router.Use(middleware.Logging)
+	router.Use(middleware.ErrorReporter)
 	router.Mount("/", routes.NewMainRouter())
 
 	addr := fmt.Sprintf("%s:%d", pkg.GlobalContainer.Config.Host, pkg.GlobalContainer.Config.Port)

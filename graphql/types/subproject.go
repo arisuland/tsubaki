@@ -14,12 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package resolvers
+package types
 
-import "context"
+import (
+	"arisu.land/tsubaki/prisma/db"
+	"time"
+)
 
-func (r *Resolver) GetProjectAcls(ctx context.Context, args struct {
-	ID string
-}) error {
-	return nil
+type Subproject struct {
+	Description *string `json:"description"`
+	UpdatedAt   string  `json:"updatedAt"`
+	CreatedAt   string  `json:"createdAt"`
+	Parent      Project `json:"parent"`
+	Name        string  `json:"name"`
+	ID          string  `json:"id"`
+}
+
+func FromSubprojectDbModel(model *db.SubprojectModel) Subproject {
+	var desc *string
+
+	description, ok := model.Description()
+	if ok {
+		desc = &description
+	}
+
+	parent := model.Parent()
+	return Subproject{
+		Description: desc,
+		UpdatedAt:   model.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:   model.CreatedAt.Format(time.RFC3339),
+		Parent:      FromProjectModel(parent),
+		Name:        model.Name,
+		ID:          model.ID,
+	}
 }

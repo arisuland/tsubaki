@@ -66,11 +66,11 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 
 	l := strings.ToUpper(entry.Level.String())
 	if f.DisableColors {
+		b.WriteString("[" + l[:4] + "] ")
+	} else {
 		b.WriteString(level)
 		b.WriteString("[" + l[:4] + "] ")
 		b.WriteString("\x1b[0m")
-	} else {
-		b.WriteString("[" + l[:4] + "] ")
 	}
 
 	if len(fields) != 0 {

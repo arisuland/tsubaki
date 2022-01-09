@@ -17,6 +17,8 @@
 package sessions
 
 import (
+	"arisu.land/tsubaki/graphql/types"
+	"arisu.land/tsubaki/pkg"
 	"arisu.land/tsubaki/prisma/db"
 	"context"
 	"encoding/json"
@@ -61,15 +63,18 @@ type Session struct {
 	Token string `json:"token"`
 
 	// User is the current user of this Session is attached to.
+	User types.User `json:"user"`
 
 	// Type represents the current sessionType.
 	Type sessionType `json:"session_type"`
 }
 
-func NewSession() *Session {
+func NewSession(user types.User, token string) *Session {
 	days := 24 * time.Hour
 	return &Session{
 		ExpiresIn: time.Now().Add(2 * days),
+		User:      user,
+		Token:     token,
 		Type:      web,
 	}
 }
@@ -203,24 +208,24 @@ func (m SessionManager) Get(uid string) *Session {
 
 func (m SessionManager) New(uid string) *Session {
 	logrus.Infof("Creating session for user %s...", uid)
-	//token, err := pkg.NewToken(uid)
-	//if err != nil {
-	//	logrus.Errorf("Unable to create JWT token for uid %s:\n%v", uid, err)
-	//	return nil
-	//}
+	token, err := pkg.NewToken(uid)
+	if err != nil {
+		logrus.Errorf("Unable to create JWT token for uid %s:\n%v", uid, err)
+		return nil
+	}
 
 	// find the user in the database
-	//user, err := m.db.Client.User.FindUnique(db.User.ID.Equals(uid)).Exec(context.TODO())
-	//if err != nil {
-	//	logrus.Errorf("Unable to find user %s from database:\n%v", uid, err)
-	//	return nil
-	//}
-	//
-	//u := types.FromUserModel(user)
-	//
-	//sess := NewSession(*u, token)
-	//m.cache(uid, sess)
-	//m.Sessions[uid] = sess
+	user, err := m.prisma.User.FindUnique(db.User.ID.Equals(uid)).Exec(context.TODO())
+	if err != nil {
+		logrus.Errorf("Unable to find user %s from database:\n%v", uid, err)
+		return nil
+	}
+
+	u := types.FromDbModel(user)
+
+	sess := NewSession(*u, token)
+	m.cache(uid, sess)
+	m.sessions[uid] = sess
 
 	return nil
 }

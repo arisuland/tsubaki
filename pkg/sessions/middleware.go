@@ -16,34 +16,42 @@
 
 package sessions
 
-import "net/http"
+import (
+	"arisu.land/tsubaki/pkg"
+	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/sirupsen/logrus"
+	"net/http"
+	"strings"
+)
+
+type response struct {
+	Message string `json:"message"`
+}
 
 func (m SessionManager) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-
-	})
-}
-
-/*
-func (m Manager) Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		// if there is no authorization header, let's just skip it.
+		// If there is no Authorization header, skip it
 		if req.Header.Get("Authorization") == "" {
 			next.ServeHTTP(w, req)
 			return
 		}
 
 		auth := req.Header.Get("Authorization")
+
+		// access token! Let's check if it is valid!
 		if strings.HasPrefix(auth, "Bearer") {
-			// TODO: access tokens
+			// Coming soon!
 			next.ServeHTTP(w, req)
 		} else if strings.HasPrefix(auth, "Session") {
-			// remove any spaces -> trim "Session" off the string
-			token := strings.Trim(strings.TrimPrefix(req.Header.Get("Authorization"), "Session"), " ")
-			decoded, err := DecodeToken(token)
+			// remove any spaces -> trim "Session" off the auth string
+			token := strings.Trim(strings.TrimPrefix(auth, "Session"), " ")
+			decoded, err := pkg.DecodeToken(token)
+
 			if err != nil {
-				logrus.Errorf("Unable to decode token '%s': %v", token, err)
-				w.WriteHeader(406)
+				logrus.Errorf("Unable to decode session token '%s': %v", token, err)
+				w.WriteHeader(400)
 				_ = json.NewEncoder(w).Encode(&response{
 					Message: fmt.Sprintf("Invalid token: %s", token),
 				})
@@ -52,7 +60,7 @@ func (m Manager) Middleware(next http.Handler) http.Handler {
 			}
 
 			// validate token
-			validated, err := ValidateToken(token)
+			validated, err := pkg.ValidateToken(token)
 			if err != nil {
 				logrus.Errorf("Unable to validate token '%s': %v", token, err)
 				w.WriteHeader(400)
@@ -74,29 +82,17 @@ func (m Manager) Middleware(next http.Handler) http.Handler {
 			}
 
 			// get user id from MapClaims
-			uid, ok := decoded["userId"].(string)
+			uid, ok := decoded["user_id"].(string)
 			if !ok {
 				w.WriteHeader(500)
 				_ = json.NewEncoder(w).Encode(&response{
-					Message: "Unable to cast `uid` ~> string.",
+					Message: "Unable to cast `user_id` ~> string.",
 				})
 
 				return
 			}
 
-			// add it to the request context
-			user, err := m.db.Client.User.FindUnique(db.User.ID.Equals(uid)).Exec(context.TODO())
-			if err != nil {
-				w.WriteHeader(500)
-				_ = json.NewEncoder(w).Encode(&response{
-					Message: "Unable to retrieve user from database.",
-				})
-
-				return
-			}
-
-			// blep!
-			ctx := context.WithValue(req.Context(), "user_id", user.ID)
+			ctx := context.WithValue(req.Context(), "userId", uid)
 			req = req.WithContext(ctx)
 			next.ServeHTTP(w, req)
 		} else {
@@ -107,4 +103,3 @@ func (m Manager) Middleware(next http.Handler) http.Handler {
 		}
 	})
 }
-*/

@@ -14,4 +14,39 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package middleware
+package util
+
+import (
+	"github.com/sirupsen/logrus"
+	"io/ioutil"
+)
+
+var db = make(map[string]mime)
+
+// mime is represented as the mime type from the mime database.
+type mime struct {
+}
+
+func init() {
+	if err := populateDb(); err != nil {
+		logrus.Fatalf("Unable to populate mime type database.")
+		panic(err)
+	}
+}
+
+func populateDb() error {
+	logrus.Debugf("Now populating mime type database!")
+
+	iana := "iana"
+	apache := "apache"
+	nginx := "nginx"
+	_ = []*string{&nginx, &apache, nil, &iana}
+
+	// Load in the file
+	_, err := ioutil.ReadFile("./assets/mime-db.json")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
