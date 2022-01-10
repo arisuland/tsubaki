@@ -15,3 +15,29 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package routes
+
+import (
+	"arisu.land/tsubaki/internal"
+	"arisu.land/tsubaki/util"
+	"github.com/go-chi/chi/v5"
+	"net/http"
+)
+
+type versionResponse struct {
+	CommitSHA string `json:"commit_sha"`
+	BuildDate string `json:"build_date"`
+	Version   string `json:"version"`
+}
+
+func NewVersionRouter() chi.Router {
+	router := chi.NewRouter()
+	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		util.WriteJson(w, 200, versionResponse{
+			CommitSHA: internal.CommitSHA,
+			BuildDate: internal.BuildDate,
+			Version:   internal.Version,
+		})
+	})
+
+	return router
+}

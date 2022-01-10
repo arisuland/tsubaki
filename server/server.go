@@ -82,6 +82,10 @@ func (s Server) Start(path string) error {
 	router.Use(middleware.Logging)
 	router.Use(middleware.ErrorReporter)
 	router.Mount("/", routes.NewMainRouter())
+	router.Mount("/ping", routes.NewPingRouter())
+	router.Mount("/metrics", routes.NewMetricsRouter())
+	router.Mount("/version", routes.NewVersionRouter())
+	router.Mount("/graphql", routes.NewGraphQLRouter(pkg.GlobalContainer, gql))
 
 	addr := fmt.Sprintf("%s:%d", pkg.GlobalContainer.Config.Host, pkg.GlobalContainer.Config.Port)
 	server := &http.Server{

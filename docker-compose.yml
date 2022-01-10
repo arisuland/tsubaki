@@ -1,27 +1,24 @@
 version: '3.8'
 services:
-  # tsubaki:
-  #   container_name: tsubaki
-  #   build: .
-  #   restart: always
-  #   depends_on:
-  #     - meilisearch
-  #     - postgres
-  #     - redis
-  #   volumes:
-  #     - type: bind
-  #       source: /opt/arisu/tsubaki/config.yml
-  #       target: ./config.yml
-  #       read_only: true
-
-  #     - arisu_projects_data:/var/lib/arisu/tsubaki/data:rw
+  tsubaki:
+    build: .
+    container_name: tsubaki
+    restart: on-failure
+    environment:
+      - DATABASE_URL=postgresql://arisu:owowhatsthis@postgres:5432/tsubaki?schema=arisu
+    ports:
+      - '17903:17903'
+    volumes:
+      - ./config.yml:/app/arisu/tsubaki/config.yml:ro
+      - arisu_projects_data:/app/arisu/tsubaki/data:rw
 
   postgres:
     image: bitnami/postgresql:latest
-    restart: always
+    container_name: postgres
+    restart: on-failure
     environment:
-      - POSTGRESQL_USERNAME=noel
-      - POSTGRESQL_PASSWORD=noeliscutieuwu
+      - POSTGRESQL_USERNAME=arisu
+      - POSTGRESQL_PASSWORD=owowhatsthis
     ports:
       - '5432:5432'
     volumes:
@@ -29,6 +26,7 @@ services:
 
   redis:
     image: bitnami/redis:latest
+    container_name: redis
     restart: always
     ports:
       - '6379:6379'
@@ -37,18 +35,238 @@ services:
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
 
-  meilisearch:
-    image: getmeili/meilisearch:latest
-    restart: always
-    command: ./meilisearch --master-key=ohthankgodthisisnotprod --no-analytics=true
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.16.2
+    restart: on-failure
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+      # - es01
+      # - es02
+      # - es03
     ports:
-      - '7700:7700'
+      - '5601:5601'
+    volumes:
+      - ./docker/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+      - ./docker/kibana/data:/usr/share/kibana/data
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+      # ELASTICSEARCH_HOSTS: '["http://es01:9200", "http://es02:9200", "http://es03:9200"]'
+
+  elastisearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.2
+    restart: on-failure
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+
+# This will setup a ElasticSearch cluster of 3 nodes
+#  es01:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.2
+#    restart: on-failure
+#    container_name: es01
+#    environment:
+#      - node.name=es01
+#      - cluster.name=tsubaki-es-cluster
+#      - discovery.seed_hosts=es02,es03
+#      - cluster.initial_master_nodes=es01,es02,es03
+#      - bootstrap.memory_lock=true
+#      - "ES_JAVA_OPTIONS=-Xms512m -Xmx4096m"
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#    volumes:
+#      - arisu_es01:/usr/share/elasticsearch/data
+#    ports:
+#      - '9200:9200'
+#
+#  es02:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.2
+#    restart: on-failure
+#    container_name: es02
+#    environment:
+#      - node.name=es02
+#      - cluster.name=tsubaki-es-cluster
+#      - discovery.seed_hosts=es01,es03
+#      - cluster.initial_master_nodes=es01,es02,es03
+#      - bootstrap.memory_lock=true
+#      - "ES_JAVA_OPTIONS=-Xms512m -Xmx4096m"
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#    volumes:
+#      - arisu_es02:/usr/share/elasticsearch/data
+#    ports:
+#      - '9200:9200'
+#
+#  es03:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.2
+#    restart: on-failure
+#    container_name: es03
+#    environment:
+#      - node.name=es03
+#      - cluster.name=tsubaki-es-cluster
+#      - discovery.seed_hosts=es01,es02
+#      - cluster.initial_master_nodes=es01,es02,es03
+#      - bootstrap.memory_lock=true
+#      - "ES_JAVA_OPTIONS=-Xms512m -Xmx4096m"
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#    volumes:
+#      - arisu_es03:/usr/share/elasticsearch/data
+#    ports:
+#      - '9200:9200'
+
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    restart: on-failure
+    container_name: zookeeper
+    ports:
+      - '2181:2181'
+    volumes:
+      - arisu_zookeeper_data:/bitnami/zookeeper
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+# This will setup a ZooKeeper cluster with 3 nodes
+#  zk1:
+#    image: bitnami/zookeeper:latest
+#    restart: on-failure
+#    container_name: zookeeper
+#    ports:
+#      - '2181:2181'
+#    volumes:
+#      - arisu_zk1_data:/bitnami/zookeeper
+#    environment:
+#      - ZOO_SERVER_ID=1
+#      - ALLOW_ANONYMOUS_LOGIN=yes
+#      - ZOO_SERVERS=zk1:2888:3888,zk2:2888:3888,zk3:2888:3888
+#
+#  zk2:
+#    image: bitnami/zookeeper:latest
+#    restart: on-failure
+#    container_name: zookeeper
+#    ports:
+#      - '2181:2181'
+#    volumes:
+#      - arisu_zk2_data:/bitnami/zookeeper
+#    environment:
+#      - ZOO_SERVER_ID=2
+#      - ALLOW_ANONYMOUS_LOGIN=yes
+#      - ZOO_SERVERS=zk1:2888:3888,zk2:2888:3888,zk3:2888:3888
+#
+#  zk3:
+#    image: bitnami/zookeeper:latest
+#    restart: on-failure
+#    container_name: zookeeper
+#    ports:
+#      - '2181:2181'
+#    volumes:
+#      - arisu_zk3_data:/bitnami/zookeeper
+#    environment:
+#      - ZOO_SERVER_ID=3
+#      - ALLOW_ANONYMOUS_LOGIN=yes
+#      - ZOO_SERVERS=zk1:2888:3888,zk2:2888:3888,zk3:2888:3888
+
+  kafka:
+    image: bitnami/kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - '9092:9092'
+    volumes:
+      - arisu_kafka_data:/bitnami
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+
+# This will setup a Kafka cluster of 3 nodes
+#  kafka-0:
+#    image: bitnami/kafka:latest
+#    depends_on:
+#      - zookeeper
+#    ports:
+#      - '9092:9092'
+#    volumes:
+#      - arisu_kafka0_data:/bitnami
+#    environment:
+#      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+#      - KAFKA_CFG_BROKER_ID=0
+#      - ALLOW_PLAINTEXT_LISTENER=yes
+#
+#  kafka-1:
+#    image: bitnami/kafka:latest
+#    depends_on:
+#      - zookeeper
+#    ports:
+#      - '9092:9092'
+#    volumes:
+#      - arisu_kafka1_data:/bitnami
+#    environment:
+#      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+#      - KAFKA_CFG_BROKER_ID=1
+#      - ALLOW_PLAINTEXT_LISTENER=yes
+#
+#  kafka-2:
+#    image: bitnami/kafka:latest
+#    depends_on:
+#      - zookeeper
+#    ports:
+#      - '9092:9092'
+#    volumes:
+#      - arisu_kafka2_data:/bitnami
+#    environment:
+#      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+#      - KAFKA_CFG_BROKER_ID=2
+#      - ALLOW_PLAINTEXT_LISTENER=yes
 
 networks:
   blep:
     driver: bridge
 
 volumes:
+  arisu_zookeeper_data:
+    driver: local
+
   arisu_postgres_data:
+    driver: local
+
   arisu_projects_data:
+    driver: local
+
   arisu_redis_data:
+    driver: local
+
+#  arisu_zk1_data:
+#    driver: local
+#
+#  arisu_zk2_data:
+#    driver: local
+#
+#  arisu_zk3_data:
+#    driver: local
+
+#  arisu_kafka0_data:
+#    driver: local
+#
+#  arisu_kafka1_data:
+#    driver: local
+#
+#  arisu_kafka2_data:
+#    driver: local
+
+#  arisu_es01:
+#    driver: local
+#
+#  arisu_es02:
+#    driver: local
+#
+#  arisu_es03:
+#    driver: local

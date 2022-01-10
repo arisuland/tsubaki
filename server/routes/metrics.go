@@ -15,3 +15,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package routes
+
+import (
+	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+func NewMetricsRouter() chi.Router {
+	router := chi.NewRouter()
+	router.Mount("/", promhttp.Handler())
+
+	return router
+}

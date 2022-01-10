@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/snowflake"
+	es "github.com/elastic/go-elasticsearch/v8"
 	"github.com/getsentry/sentry-go"
 	"github.com/go-redis/redis/v8"
 	"github.com/segmentio/kafka-go"
@@ -39,13 +40,14 @@ var GlobalContainer *Container = nil
 // Container is a object that holds all the dependencies for every part
 // of Tsubaki's lifecycle.
 type Container struct {
-	Snowflake *snowflake.Node
-	Storage   storage.BaseStorageProvider
-	Prisma    *db.PrismaClient
-	Sentry    *sentry.Client
-	Config    *Config
-	Redis     *redis.Client
-	Kafka     *kafka.Writer
+	ElasticSearch *es.Client
+	Snowflake     *snowflake.Node
+	Storage       storage.BaseStorageProvider
+	Prisma        *db.PrismaClient
+	Sentry        *sentry.Client
+	Config        *Config
+	Redis         *redis.Client
+	Kafka         *kafka.Writer
 }
 
 func NewContainer(path string) error {
@@ -179,30 +181,62 @@ func NewContainer(path string) error {
 		sc = client
 	}
 
+	var e *es.Client
+	if config.ElasticSearch != nil {
+		logrus.Info("Connecting to ElasticSearch...")
+		if config.ElasticSearch.Username != nil || config.ElasticSearch.Password != nil {
+			logrus.Warn("It is recommended to keep your ElasticSearch instance secured~")
+		}
+
+		cfg := es.Config{
+			Addresses:            config.ElasticSearch.Hosts,
+			DiscoverNodesOnStart: true,
+		}
+
+		if config.ElasticSearch.Username != nil {
+			cfg.Username = *config.ElasticSearch.Username
+		}
+
+		if config.ElasticSearch.Password != nil {
+			cfg.Password = *config.ElasticSearch.Password
+		}
+
+		client, err := es.NewClient(cfg)
+		if err != nil {
+			return err
+		}
+
+		e = client
+	}
+
 	GlobalContainer = &Container{
-		Snowflake: node,
-		Storage:   provider,
-		Prisma:    client,
-		Sentry:    sc,
-		Config:    config,
-		Redis:     re,
-		Kafka:     writer,
+		ElasticSearch: e,
+		Snowflake:     node,
+		Storage:       provider,
+		Prisma:        client,
+		Sentry:        sc,
+		Config:        config,
+		Redis:         re,
+		Kafka:         writer,
 	}
 
 	return nil
 }
 
 func (c *Container) Close() error {
+	s := time.Now()
 	logrus.Warn("Disconnecting from Redis...")
 	if err := c.Redis.Close(); err != nil {
 		return err
 	}
 
-	logrus.Warn("Disconnecting from PostgreSQL...")
+	logrus.Warnf("Disconnected from Redis in %s! Disconnecting from PostgreSQL...", time.Since(s).String())
+	s = time.Now()
 	if err := c.Prisma.Disconnect(); err != nil {
 		return err
 	}
 
+	logrus.Warnf("Disconnected from PostgreSQL in %s!", time.Since(s).String())
 	if c.Kafka != nil {
 		logrus.Warn("Closing off Kafka broker...")
 		if err := c.Kafka.Close(); err != nil {

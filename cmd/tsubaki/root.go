@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 // InputFlags is a object that represents all the global flags
@@ -58,7 +59,7 @@ var globalFlags = new(InputFlags)
 
 func Execute() int {
 	// setup flags
-	rootCmd.Flags().BoolVarP(&globalFlags.Verbose, "verbose", "d", false, "if debug logging should be enabled or not.")
+	rootCmd.Flags().BoolVarP(&globalFlags.Verbose, "verbose", "v", false, "if debug logging should be enabled or not.")
 	rootCmd.Flags().StringVarP(&globalFlags.ConfigFile, "config-file", "c", "./config.yml", "the configuration file to use when starting up the server")
 	rootCmd.AddCommand(
 		newVersionCommand(),
@@ -88,6 +89,7 @@ func run(_ *cobra.Command, args []string) error {
 func preRun(_ *cobra.Command, _ []string) error {
 	if globalFlags.Verbose {
 		logrus.SetLevel(logrus.TraceLevel)
+		_ = os.Setenv("PRISMA_CLIENT_GO_LOG", "true")
 	}
 
 	return nil

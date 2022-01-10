@@ -159,6 +159,12 @@ type Config struct {
 	//
 	// Prefix: TSUBAKI_REDIS_*
 	Redis RedisConfig `yaml:"redis"`
+
+	// Returns the configuration to use ElasticSearch as the search
+	// engine for the `search` GraphQL query.
+	//
+	// Default: nil | Prefix: TSUBAKI_ELASTIC_*
+	ElasticSearch *ElasticsearchConfig `yaml:"elasticsearch"`
 }
 
 // KafkaConfig is the configuration options for configuring the Kafka Producer.
@@ -241,6 +247,22 @@ type StorageConfig struct {
 	// Configures using Amazon S3 to host your projects.
 	// This is a recommended option to store your projects. :3
 	S3 *storage.S3StorageConfig `yaml:"s3"`
+}
+
+// ElasticsearchConfig is the configuration for using Elasticsearch for
+// holding search metadata. This is used to power the `search` GraphQL query.
+//
+// If the Elasticsearch service isn't available the `search` query will just
+// return a error.
+type ElasticsearchConfig struct {
+	// Password is the password to use to authenticate.
+	Password *string `yaml:"password"`
+
+	// Username is the username if you have authentication enabled.
+	Username *string `yaml:"username"`
+
+	// Hosts is the URI endpoints to match your ElasticSearch cluster.
+	Hosts []string `yaml:"hosts"`
 }
 
 func NewConfig(path string) (*Config, error) {
@@ -387,6 +409,35 @@ func getStorageConfig() (StorageConfig, error) {
 	}
 
 	return StorageConfig{}, errors.New("missing storage provider, read more here: https://docs.arisu.land/selfhosting/storage")
+}
+
+func getElasticSearchConfig() *ElasticsearchConfig {
+	// Check if the required env variable exists
+	if os.Getenv("TSUBAKI_ELASTIC_ENDPOINTS") != "" {
+		var password *string
+		var username *string
+
+		nodes := strings.Split(os.Getenv("TSUBAKI_ELASTIC_ENDPOINTS"), ";")
+
+		if os.Getenv("TSUBAKI_ELASTIC_PASSWORD") != "" {
+			raw := os.Getenv("TSUBAKI_ELASTIC_PASSWORD")
+			password = &raw
+		}
+
+		if os.Getenv("TSUBAKI_ELASTIC_USERNAME") != "" {
+			raw := os.Getenv("TSUBAKI_ELASTIC_USERNAME")
+			username = &raw
+		}
+
+		return &ElasticsearchConfig{
+			Password: password,
+			Username: username,
+			Hosts:    nodes,
+		}
+	}
+
+	logrus.Warnf("Missing ElasticSearch configuration. This is not required unless you need the `search` GraphQL query.")
+	return nil
 }
 
 func checkIfS3EnvExists() bool {
@@ -584,6 +635,7 @@ func LoadFromEnv() (*Config, error) {
 
 	// Now we need to get Redis, Kafka, and Storage env handlers WAAAAAA
 	kafkaConfig := getKafkaConfig()
+	elasticCfg := getElasticSearchConfig()
 	redisConfig, err := getRedisConfig()
 
 	if err != nil {
@@ -598,9 +650,10 @@ func LoadFromEnv() (*Config, error) {
 	logrus.Info("Successfully loaded configuration from environment variables!")
 	return &Config{
 		SecretKeyBase: os.Getenv("TSUBAKI_SECRET_KEY_HASH"),
+		ElasticSearch: elasticCfg,
+		Registrations: convertToBool(os.Getenv("TSUBAKI_REGISTRATIONS"), true),
 		InviteOnly:    convertToBool(os.Getenv("TSUBAKI_INVITE_ONLY"), false),
 		Telemetry:     telemetry,
-		Registrations: convertToBool(os.Getenv("TSUBAKI_REGISTRATIONS"), true),
 		SentryDSN:     sentryDsn,
 		Storage:       storageConfig,
 		Kafka:         kafkaConfig,

@@ -15,3 +15,19 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package routes
+
+import (
+	"github.com/go-chi/chi/v5"
+	"net/http"
+)
+
+func NewPingRouter() chi.Router {
+	router := chi.NewRouter()
+	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte("OK"))
+	})
+
+	return router
+}
