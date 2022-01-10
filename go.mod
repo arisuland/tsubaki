@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/aws/aws-sdk-go v1.42.30
 	github.com/bwmarrin/snowflake v0.3.0
+	github.com/elastic/go-elasticsearch/v8 v8.0.0-alpha
 	github.com/getsentry/sentry-go v0.12.0
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-redis/redis/v8 v8.11.4
@@ -32,7 +33,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.0.0-alpha // indirect
-	github.com/elastic/go-elasticsearch/v8 v8.0.0-alpha // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
