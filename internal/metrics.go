@@ -45,8 +45,8 @@ var (
 
 // RegisterMetrics registers all counters and histograms
 func RegisterMetrics() {
-	logrus.Info("Creating metrics...")
+	logrus.Debug("Creating metrics...")
 	prometheus.MustRegister(RequestLatencyMetric, RequestMetric, GQLLatencyMetric, UsersCountMetric)
 
-	logrus.Info("Metrics have been established.")
+	logrus.Debug("Metrics have been established.")
 }

@@ -99,7 +99,7 @@ func NewSessionManager(redis *redis.Client, prisma *db.PrismaClient) SessionMana
 	}
 
 	count := redis.HLen(context.TODO(), "tsubaki:sessions").Val()
-	logrus.Infof("Retrieved %d documents in %s", count, time.Since(s).String())
+	logrus.Debugf("Retrieved %d documents in %s", count, time.Since(s).String())
 
 	s = time.Now()
 	result, err := redis.HGetAll(context.TODO(), "tsubaki:sessions").Result()
@@ -118,7 +118,7 @@ func NewSessionManager(redis *redis.Client, prisma *db.PrismaClient) SessionMana
 		}
 	}
 
-	logrus.Infof("Took %s to re-implement all sessions (%d/%d sessions)", time.Since(s).String(), len(m.sessions), count)
+	logrus.Debugf("Took %s to re-implement all sessions (%d/%d sessions)", time.Since(s).String(), len(m.sessions), count)
 
 	// Get all the expired ratelimits
 	expired := make([]string, 0)
@@ -128,7 +128,7 @@ func NewSessionManager(redis *redis.Client, prisma *db.PrismaClient) SessionMana
 		}
 	}
 
-	logrus.Infof("Found %d ratelimits to expire!", len(expired))
+	logrus.Debugf("Found %d ratelimits to expire!", len(expired))
 	for _, r := range expired {
 		_, err := redis.HDel(context.TODO(), "tsubaki:sessions", r).Result()
 		if err != nil {

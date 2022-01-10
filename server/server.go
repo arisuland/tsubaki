@@ -35,19 +35,7 @@ import (
 	"time"
 )
 
-// Server is the global Tsubaki server that is used on the `tsubaki` command
-// without any CLI commands.
-type Server struct {
-	server *http.Server
-}
-
-func NewServer() Server {
-	return Server{
-		server: nil,
-	}
-}
-
-func (s Server) Start(path string) error {
+func Start(path string) error {
 	if internal.Root() {
 		logrus.Warn("Make sure you are running Tsubaki using `sudo`, admin privileges on Windows, or under the `root` account!")
 	}
@@ -93,8 +81,6 @@ func (s Server) Start(path string) error {
 		Handler:      router,
 		WriteTimeout: 10 * time.Second,
 	}
-
-	s.server = server
 
 	// Listen for syscall signals so Docker can properly destroy the server
 	sigint := make(chan os.Signal, 1)

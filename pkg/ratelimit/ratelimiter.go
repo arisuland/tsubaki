@@ -69,7 +69,7 @@ func NewRatelimiter(redis *redis.Client) Ratelimiter {
 	}
 
 	count := redis.HLen(context.TODO(), "tsubaki:ratelimits").Val()
-	logrus.Infof("Took %s to get %d ratelimits", time.Since(s).String(), count)
+	logrus.Debugf("Took %s to get %d ratelimits", time.Since(s).String(), count)
 
 	s = time.Now()
 	result, err := redis.HGetAll(context.TODO(), "tsubaki:ratelimits").Result()
@@ -88,7 +88,7 @@ func NewRatelimiter(redis *redis.Client) Ratelimiter {
 		}
 	}
 
-	logrus.Infof(
+	logrus.Debugf(
 		"Took %s to re-implement all ratelimits (%d/%d ratelimits)",
 		time.Now().Sub(s).String(),
 		len(rl.ratelimits),
@@ -103,7 +103,7 @@ func NewRatelimiter(redis *redis.Client) Ratelimiter {
 		}
 	}
 
-	logrus.Infof("Found %d ratelimits to expire!", len(expired))
+	logrus.Debugf("Found %d ratelimits to expire!", len(expired))
 	for _, r := range expired {
 		_, err := redis.HDel(context.TODO(), "tsubaki:sessions", r).Result()
 		if err != nil {

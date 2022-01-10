@@ -78,9 +78,7 @@ func run(_ *cobra.Command, args []string) error {
 	// run the server if there is no args
 	if len(args) == 0 {
 		util.PrintBanner()
-
-		srv := server.NewServer()
-		return srv.Start(globalFlags.ConfigFile)
+		return server.Start(globalFlags.ConfigFile)
 	}
 
 	return fmt.Errorf("unknown tsubaki command %q", "tsubaki "+args[0])

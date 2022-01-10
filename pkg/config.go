@@ -481,12 +481,12 @@ func testConfig(path string) error {
 }
 
 func loadConfig(path string) (*Config, error) {
-	logrus.Info("Loading configuration...")
+	logrus.Debug("Loading configuration...")
 	if path != "" {
 		// Check if it is in the root directory
 		_, err := os.Stat("./config.yml")
 		if !os.IsNotExist(err) {
-			logrus.Info("Found configuration in root, loading from that...")
+			logrus.Debug("Found configuration in root, loading from that...")
 			path = "./config.yml"
 		} else {
 			logrus.Warn("Unable to find configuration in root directory or with `-c` flag. Loading from environment variables...")
@@ -514,7 +514,7 @@ func loadConfig(path string) (*Config, error) {
 		}
 	}
 
-	logrus.Infof("Found configuration in path %s! Now loading...", path)
+	logrus.Debugf("Found configuration in path %s! Now loading...", path)
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -568,7 +568,7 @@ func loadConfig(path string) (*Config, error) {
 }
 
 func LoadFromEnv() (*Config, error) {
-	logrus.Info("Now loading configuration from environment variables...")
+	logrus.Debug("Now loading configuration from environment variables...")
 
 	// Load from .env if the file exists
 	if _, err := os.Stat("./.env"); !os.IsNotExist(err) {
@@ -647,7 +647,7 @@ func LoadFromEnv() (*Config, error) {
 		return nil, err
 	}
 
-	logrus.Info("Successfully loaded configuration from environment variables!")
+	logrus.Debug("Successfully loaded configuration from environment variables!")
 	return &Config{
 		SecretKeyBase: os.Getenv("TSUBAKI_SECRET_KEY_HASH"),
 		ElasticSearch: elasticCfg,

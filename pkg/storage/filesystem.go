@@ -44,7 +44,7 @@ func NewFilesystemStorageProvider(config FilesystemStorageConfig) BaseStoragePro
 }
 
 func (fs FilesystemProvider) Init() error {
-	logrus.Infof("Checking if directory %s exists...", fs.Directory)
+	logrus.Debugf("Checking if directory %s exists...", fs.Directory)
 
 	_, err := os.Stat(fs.Directory)
 	if os.IsNotExist(err) {
@@ -55,7 +55,7 @@ func (fs FilesystemProvider) Init() error {
 		}
 	}
 
-	logrus.Info("Directory exists! Checking if lockfile exists...")
+	logrus.Debug("Directory exists! Checking if lockfile exists...")
 	path := fs.Directory + "/arisu.lock"
 
 	if _, err = os.Stat(path); err != nil {
@@ -66,7 +66,7 @@ func (fs FilesystemProvider) Init() error {
 			return err
 		}
 
-		logrus.Infof("Creating file %s!", path)
+		logrus.Debugf("Creating file %s!", path)
 		err = os.WriteFile(path, []byte("... this file exists to exist ...\n"), 0755)
 		if err != nil {
 			return err
@@ -77,7 +77,7 @@ func (fs FilesystemProvider) Init() error {
 		}()
 	}
 
-	logrus.Info("Found lockfile! Checking if it was tampered with...")
+	logrus.Debug("Found lockfile! Checking if it was tampered with...")
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
@@ -101,7 +101,7 @@ func (fs FilesystemProvider) Name() string {
 }
 
 func (fs FilesystemProvider) GetMetadata(id string, project string) (*ProjectMetadata, error) {
-	logrus.Infof("Told to grab metadata for project %s/%s", id, project)
+	logrus.Debugf("Told to grab metadata for project %s/%s", id, project)
 
 	// Check if the directory exists
 	dir := fmt.Sprintf("%s/%s/%s", fs.Directory, id, project)
@@ -115,7 +115,7 @@ func (fs FilesystemProvider) GetMetadata(id string, project string) (*ProjectMet
 	}
 
 	// Check if "metadata.lock" exists
-	logrus.Infof("Checking if metadata lock exists for project %s/%s", id, project)
+	logrus.Debugf("Checking if metadata lock exists for project %s/%s", id, project)
 	path := dir + "/metadata.lock"
 
 	if _, err = os.Stat(path); err != nil {
@@ -153,7 +153,7 @@ func (fs FilesystemProvider) GetMetadata(id string, project string) (*ProjectMet
 		return metadata, nil
 	}
 
-	logrus.Infof("Now retrieving content for %s!", path)
+	logrus.Debugf("Now retrieving content for %s!", path)
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -169,7 +169,7 @@ func (fs FilesystemProvider) GetMetadata(id string, project string) (*ProjectMet
 }
 
 func (fs FilesystemProvider) HandleUpload(files []UploadRequest) error {
-	logrus.Infof("Told to handle %d files!", len(files))
+	logrus.Debugf("Told to handle %d files!", len(files))
 	s := time.Now()
 
 	for _, file := range files {
@@ -258,6 +258,6 @@ func (fs FilesystemProvider) HandleUpload(files []UploadRequest) error {
 		}
 	}
 
-	logrus.Infof("Took %s to complete %d files.", time.Since(s).String(), len(files))
+	logrus.Debugf("Took %s to complete %d files.", time.Since(s).String(), len(files))
 	return nil
 }

@@ -20,16 +20,20 @@ import (
 	"arisu.land/tsubaki/internal"
 	"arisu.land/tsubaki/pkg/storage"
 	"arisu.land/tsubaki/prisma/db"
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/snowflake"
 	es "github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/getsentry/sentry-go"
 	"github.com/go-redis/redis/v8"
 	"github.com/segmentio/kafka-go"
 	"github.com/sirupsen/logrus"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -56,7 +60,7 @@ func NewContainer(path string) error {
 	}
 
 	snowflake.Epoch = int64(1641020400000)
-	logrus.Info("Creating container...")
+	logrus.Debug("Creating container...")
 
 	config, err := NewConfig(path)
 	if err != nil {
@@ -73,14 +77,14 @@ func NewContainer(path string) error {
 	}
 
 	// Create the Prisma client
-	logrus.Info("Connecting to PostgreSQL...")
-	client := db.NewClient()
-	if err := client.Connect(); err != nil {
+	logrus.Debug("Connecting to PostgreSQL...")
+	prisma := db.NewClient()
+	if err := prisma.Connect(); err != nil {
 		return err
 	}
 
-	logrus.Info("Connected to PostgreSQL successfully!")
-	users, err := client.User.FindMany().Exec(context.TODO())
+	logrus.Debug("Connected to PostgreSQL successfully!")
+	users, err := prisma.User.FindMany().Exec(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -88,7 +92,7 @@ func NewContainer(path string) error {
 	internal.UsersCountMetric.Set(float64(len(users)))
 
 	// Create Redis client
-	logrus.Info("Now connecting to Redis...")
+	logrus.Debug("Now connecting to Redis...")
 
 	password := ""
 	if config.Redis.Password != nil {
@@ -124,12 +128,12 @@ func NewContainer(path string) error {
 		})
 	}
 
-	logrus.Info("Created Redis client, checking connection...")
+	logrus.Debug("Created Redis client, checking connection...")
 	if err := re.Ping(context.TODO()).Err(); err != nil {
 		return err
 	}
 
-	logrus.Info("Connected to Redis!")
+	logrus.Debug("Connected to Redis!")
 
 	// create storage provider
 	logrus.Info("Now creating storage provider...")
@@ -152,7 +156,7 @@ func NewContainer(path string) error {
 	var writer *kafka.Writer
 
 	if config.Kafka != nil {
-		logrus.Info("Creating Kafka producer...")
+		logrus.Debug("Creating Kafka producer...")
 		writer = &kafka.Writer{
 			Addr:     kafka.TCP(config.Kafka.Brokers...),
 			Topic:    config.Kafka.Topic,
@@ -183,8 +187,8 @@ func NewContainer(path string) error {
 
 	var e *es.Client
 	if config.ElasticSearch != nil {
-		logrus.Info("Connecting to ElasticSearch...")
-		if config.ElasticSearch.Username != nil || config.ElasticSearch.Password != nil {
+		logrus.Debug("Connecting to ElasticSearch...")
+		if config.ElasticSearch.Username == nil || config.ElasticSearch.Password == nil {
 			logrus.Warn("It is recommended to keep your ElasticSearch instance secured~")
 		}
 
@@ -207,13 +211,36 @@ func NewContainer(path string) error {
 		}
 
 		e = client
+
+		// check if we can query
+		res, err := client.Info()
+		if err != nil {
+			return err
+		}
+
+		// unmarshal it from `res`
+		defer func() {
+			_ = res.Body.Close()
+		}()
+
+		var data map[string]interface{}
+		err = json.NewDecoder(res.Body).Decode(&data)
+		if err != nil {
+			return err
+		}
+
+		serverVersion := data["version"].(map[string]interface{})["number"].(string)
+		logrus.Debugf("Server: %s | Client: %s", serverVersion, es.Version)
+
+		// Now we have to index documents, in a separate goroutine
+		_ = indexDocuments(prisma, client)
 	}
 
 	GlobalContainer = &Container{
 		ElasticSearch: e,
 		Snowflake:     node,
 		Storage:       provider,
-		Prisma:        client,
+		Prisma:        prisma,
 		Sentry:        sc,
 		Config:        config,
 		Redis:         re,
@@ -225,12 +252,11 @@ func NewContainer(path string) error {
 
 func (c *Container) Close() error {
 	s := time.Now()
-	logrus.Warn("Disconnecting from Redis...")
 	if err := c.Redis.Close(); err != nil {
 		return err
 	}
 
-	logrus.Warnf("Disconnected from Redis in %s! Disconnecting from PostgreSQL...", time.Since(s).String())
+	logrus.Warnf("Disconnected from Redis in %s!", time.Since(s).String())
 	s = time.Now()
 	if err := c.Prisma.Disconnect(); err != nil {
 		return err
@@ -263,4 +289,129 @@ func (c *Container) RedisPing() int64 {
 	} else {
 		return time.Since(t).Milliseconds()
 	}
+}
+
+func indexDocuments(prisma *db.PrismaClient, client *es.Client) error {
+	logrus.Debug("Now indexing documents...")
+	wg := sync.WaitGroup{}
+
+	// query all projects
+	t := time.Now()
+	projects, err := prisma.Project.FindMany().Exec(context.TODO())
+	if err != nil {
+		logrus.Fatalf("Unable to retrieve projects: %v", err)
+		return err
+	}
+
+	logrus.Debugf("Took %s to grab all projects.", time.Since(t).String())
+
+	t = time.Now()
+	// query all users
+	users, err := prisma.User.FindMany().Exec(context.TODO())
+	if err != nil {
+		logrus.Fatalf("Unable to retrieve users: %v", err)
+		return err
+	}
+
+	logrus.Debugf("Took %s to grab all users.", time.Since(t).String())
+
+	// Now, we actually index them!
+	for i, project := range projects {
+		logrus.Debugf("Now indexing project %s...", project.ID)
+
+		wg.Add(1)
+		go func(i int, project db.ProjectModel) {
+			t := time.Now()
+
+			// unmarshal it from json
+			data, err := json.Marshal(&project.InnerProject)
+			if err != nil {
+				logrus.Fatalf("Unable to unmarshal project %s: %v", project.ID, err)
+				return
+			}
+
+			// Setup the request payload
+			req := esapi.IndexRequest{
+				Index:      "arisu:tsubaki",
+				DocumentID: project.ID,
+				Body:       bytes.NewReader(data),
+				Refresh:    "true",
+			}
+
+			// Perform the request!!!
+			res, err := req.Do(context.TODO(), client)
+			if err != nil {
+				logrus.Fatalf("Unable to get response from ElasticSearch: %v", err)
+				return
+			}
+
+			defer func() {
+				_ = res.Body.Close()
+			}()
+
+			logrus.Debug("Took %s to send out a request to server", time.Since(t).String())
+			if res.IsError() {
+				logrus.Fatalf("Unable to index project %s [%s]", project.ID, res.Status())
+			} else {
+				var data map[string]interface{}
+				if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
+					logrus.Fatalf("Unable to parse request body: %v", err)
+				} else {
+					logrus.Debugf("Indexed project %s successfully! version=%d", project.ID, int(data["_version"].(float64)))
+				}
+			}
+		}(i, project)
+	}
+
+	// now we index the users also!! :D
+	// Now, we actually index them!
+	for i, user := range users {
+		logrus.Debugf("Now indexing user %s...", user.ID)
+
+		wg.Add(1)
+		go func(i int, user db.UserModel) {
+			t := time.Now()
+
+			// unmarshal it from json
+			u := FromDbUserModel(user)
+			data, err := json.Marshal(&u)
+			if err != nil {
+				logrus.Fatalf("Unable to unmarshal project %s: %v", user.ID, err)
+				return
+			}
+
+			// Setup the request payload
+			req := esapi.IndexRequest{
+				Index:      "arisu:tsubaki",
+				DocumentID: user.ID,
+				Body:       bytes.NewReader(data),
+				Refresh:    "true",
+			}
+
+			// Perform the request!!!
+			res, err := req.Do(context.TODO(), client)
+			if err != nil {
+				logrus.Fatalf("Unable to get response from ElasticSearch: %v", err)
+				return
+			}
+
+			defer func() {
+				_ = res.Body.Close()
+			}()
+
+			logrus.Debug("Took %s to send out a request to server", time.Since(t).String())
+			if res.IsError() {
+				logrus.Fatalf("Unable to index project %s [%s]", user.ID, res.Status())
+			} else {
+				var data map[string]interface{}
+				if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
+					logrus.Fatalf("Unable to parse request body: %v", err)
+				} else {
+					logrus.Debugf("Indexed user %s successfully! version=%d", user.ID, int(data["_version"].(float64)))
+				}
+			}
+		}(i, user)
+	}
+
+	return nil
 }

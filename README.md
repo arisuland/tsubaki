@@ -21,7 +21,7 @@ The frontend repository and the GitHub bot will reside in the [main repository](
 
 ## Tech Stack
 ### Backend
-- [**Elasticsearch**](https://elastic.io)
+- [**ElasticSearch**](https://elastic.io) (optional)
 - [**PostgreSQL**](https://postgresql.org) (with [Prisma](https://prisma.io))
 - [**Kafka**](https://kafka.apache.org) (optional)
 - [**Redis**](https://redis.io)
@@ -49,7 +49,7 @@ Arisu is split into multiple projects to reduce workloads.
 You have four options to run Tsubaki:
 
 - under [Codespaces](https://github.com/features/codespaces) with a [development container](./.devcontainer) under **Visual Studio Code**
-- Installing it on **Kubernetes** with our [Helm chart](https://charts.arisu.land)
+- Installing it on **Kubernetes** with our [Helm chart](https://github.com/Noelware/charts)
 - [Cloning the repository and running it](#installation-locally)
 - Under a [Docker container](#installation-docker)
 
@@ -64,7 +64,7 @@ Before running your own instance of Arisu, you are required to have:
 
 Any optional software to optimize the experience of Arisu:
 
-- [**Elasticsearch**](https://elastic.co) - Search engine used for having a search bar to easily traverse projects on the web UI.
+- [**ElasticSearch**](https://elastic.co) - Search engine used for having a search bar to easily traverse projects on the web UI.
 - [**Docker**](https://docker.io) - A containerization tool to run Tsubaki. Can be used with our [docker compose](./docker-compose.yml) file.
 - [**Kafka**](https://kafka.apache.org) - Used for messaging queues to and from the [GitHub bot](https://github.arisu.land)
 
