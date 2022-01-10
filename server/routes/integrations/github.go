@@ -15,3 +15,20 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package integrations
+
+import (
+	"arisu.land/tsubaki/util"
+	"github.com/go-chi/chi/v5"
+	"net/http"
+)
+
+func newGitHubRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		util.WriteJson(w, 200, genericResponse{
+			Message: "This is a placeholder until the actual GitHub integration comes.",
+		})
+	})
+
+	return r
+}

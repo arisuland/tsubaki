@@ -15,3 +15,14 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package integrations
+
+import "github.com/go-chi/chi/v5"
+
+func NewIntegrationsRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Mount("/github", newGitHubRouter())
+	r.Mount("/weblate", newWeblateRouter())
+	r.Mount("/crowdin", newCrowdinRouter())
+
+	return r
+}

@@ -15,3 +15,30 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package api
+
+import (
+	"arisu.land/tsubaki/util"
+	"github.com/go-chi/chi/v5"
+	"net/http"
+)
+
+func NewApiRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		util.WriteJson(w, 200, struct {
+			Message string `json:"message"`
+		}{
+			Message: "Welcome to the not-so secret internal API. This is not documented, beware!",
+		})
+	})
+
+	return r
+}
+
+func NewApiV1Router() chi.Router {
+	r := chi.NewRouter()
+	r.Mount("/admin", newAdminRouter())
+	r.Mount("/storage", newStorageRouter())
+
+	return r
+}

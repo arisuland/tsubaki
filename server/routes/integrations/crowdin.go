@@ -15,3 +15,24 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package integrations
+
+import (
+	"arisu.land/tsubaki/util"
+	"github.com/go-chi/chi/v5"
+	"net/http"
+)
+
+type genericResponse struct {
+	Message string `json:"message"`
+}
+
+func newCrowdinRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		util.WriteJson(w, 200, genericResponse{
+			Message: "This is a placeholder until the actual Crowdin integration comes.",
+		})
+	})
+
+	return r
+}

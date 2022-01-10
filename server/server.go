@@ -24,6 +24,8 @@ import (
 	"arisu.land/tsubaki/pkg/sessions"
 	"arisu.land/tsubaki/server/middleware"
 	"arisu.land/tsubaki/server/routes"
+	"arisu.land/tsubaki/server/routes/api"
+	"arisu.land/tsubaki/server/routes/integrations"
 	"context"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -70,10 +72,13 @@ func Start(path string) error {
 	router.Use(middleware.Logging)
 	router.Use(middleware.ErrorReporter)
 	router.Mount("/", routes.NewMainRouter())
+	router.Mount("/api", api.NewApiRouter())
 	router.Mount("/ping", routes.NewPingRouter())
+	router.Mount("/api/v1", api.NewApiV1Router())
 	router.Mount("/metrics", routes.NewMetricsRouter())
 	router.Mount("/version", routes.NewVersionRouter())
 	router.Mount("/graphql", routes.NewGraphQLRouter(pkg.GlobalContainer, gql))
+	router.Mount("/integrations", integrations.NewIntegrationsRouter())
 
 	addr := fmt.Sprintf("%s:%d", pkg.GlobalContainer.Config.Host, pkg.GlobalContainer.Config.Port)
 	server := &http.Server{
