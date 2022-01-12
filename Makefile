@@ -78,6 +78,11 @@ db.generate:
 	@echo Generating Prisma artifacts...
 	go run github.com/prisma/prisma-client-go generate
 
+# Usage: `make db.generate`
+db.seed: db.generate
+	@echo Generating admin user...
+	go run ./cmd/seed/main.go
+
 # Usage: `make docgen`
 docgen:
 	@echo Now building documentation schema...

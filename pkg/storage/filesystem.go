@@ -17,16 +17,17 @@
 package storage
 
 import (
-	"arisu.land/tsubaki/util"
 	"encoding/json"
 	"fmt"
-	"github.com/mushroomsir/mimetypes"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"arisu.land/tsubaki/util"
+	"github.com/mushroomsir/mimetypes"
+	"github.com/sirupsen/logrus"
 )
 
 type FilesystemProvider struct {
@@ -67,7 +68,7 @@ func (fs FilesystemProvider) Init() error {
 		}
 
 		logrus.Debugf("Creating file %s!", path)
-		err = os.WriteFile(path, []byte("... this file exists to exist ...\n"), 0755)
+		err = os.WriteFile(path, []byte("... this file exists to exist ...\ninit=false\n"), 0755)
 		if err != nil {
 			return err
 		}
@@ -84,9 +85,9 @@ func (fs FilesystemProvider) Init() error {
 	}
 
 	content := string(contents)
-	if content != "... this file exists to exist ...\n" {
+	if strings.Split(content, "\n")[0] != "... this file exists to exist ...\n" {
 		logrus.Warn("Manifest lockfile was tampered or was corrupted! Rewriting...")
-		err = os.WriteFile(path, []byte("... this file exists to exist ...\n"), 0755)
+		err = os.WriteFile(path, []byte("... this file exists to exist ...\ninit=false\n"), 0755)
 		if err != nil {
 			return err
 		}
