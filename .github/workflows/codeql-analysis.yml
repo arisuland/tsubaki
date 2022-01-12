@@ -3,10 +3,36 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - staging
       - master
+
+    paths-ignore:
+      - '.github/**'
+      - '.vscode/**'
+      - 'assets/**'
+      - 'docker/**'
+      - '.idea/**'
+      - '.dockerignore'
+      - '.gitignore'
+      - '**.md'
+      - 'LICENSE'
+      - 'renovate.json'
   pull_request:
     branches:
+      - staging
       - master
+      
+    paths-ignore:
+      - '.github/**'
+      - '.vscode/**'
+      - 'assets/**'
+      - 'docker/**'
+      - '.idea/**'
+      - '.dockerignore'
+      - '.gitignore'
+      - '**.md'
+      - 'LICENSE'
+      - 'renovate.json'
   schedule:
     - cron: '21 2 * * 4'
 
