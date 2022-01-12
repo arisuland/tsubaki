@@ -17,6 +17,14 @@
 package server
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"arisu.land/tsubaki/graphql"
 	"arisu.land/tsubaki/internal"
 	"arisu.land/tsubaki/pkg"
@@ -26,15 +34,8 @@ import (
 	"arisu.land/tsubaki/server/routes"
 	"arisu.land/tsubaki/server/routes/api"
 	"arisu.land/tsubaki/server/routes/integrations"
-	"context"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 )
 
 func Start(path string) error {
@@ -55,14 +56,12 @@ func Start(path string) error {
 		return err
 	}
 
-	logrus.WithField("step", "graphql").Info("Parsing GraphQL schema...")
-	gql := graphql.NewGraphQLManager()
-
-	if err := gql.GenerateSchema(); err != nil {
+	gql, err := graphql.NewGraphQLManager()
+	if err != nil {
 		return err
 	}
 
-	logrus.WithField("step", "server").Info("Starting up HTTP server!")
+	logrus.Info("Starting up HTTP server!")
 	rl := ratelimit.NewRatelimiter(pkg.GlobalContainer.Redis)
 	router := chi.NewRouter()
 	sesh := sessions.NewSessionManager(pkg.GlobalContainer.Redis, pkg.GlobalContainer.Prisma)
@@ -92,7 +91,7 @@ func Start(path string) error {
 	signal.Notify(sigint, syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		logrus.WithField("step", "server").Infof("Listening under '%s'!", addr)
+		logrus.Infof("Listening under '%s'!", addr)
 		err = server.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			logrus.Errorf("Unable to run server: %s", err)
@@ -101,14 +100,14 @@ func Start(path string) error {
 
 	<-sigint
 
-	logrus.WithField("step", "shutdown").Warn("Closing off server...")
+	logrus.Warn("Closing off server...")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 	// Wait for connections to die off
 	go func() {
 		<-shutdownCtx.Done()
 		if shutdownCtx.Err() == context.DeadlineExceeded {
-			logrus.WithField("step", "shutdown requests").Warn("Reached deadline to close off incoming requests...")
+			logrus.Warn("Reached deadline to close off incoming requests...")
 		}
 	}()
 
@@ -116,18 +115,18 @@ func Start(path string) error {
 		// Cache all ratelimits + sessions
 		err = rl.Close()
 		if err != nil {
-			logrus.WithField("step", "cache->ratelimits").Errorf("Unable to cache all ratelimits: %v", err)
+			logrus.Errorf("Unable to cache all ratelimits: %v", err)
 		}
 
 		err = sesh.Close()
 		if err != nil {
-			logrus.WithField("step", "cache->sessions").Errorf("Unable to cache all sessions: %v", err)
+			logrus.Errorf("Unable to cache all sessions: %v", err)
 		}
 
 		// Shutdown the container
 		err = pkg.GlobalContainer.Close()
 		if err != nil {
-			logrus.WithField("step", "shutdown->container").Errorf("Unable to close resources: %v", err)
+			logrus.Errorf("Unable to close resources: %v", err)
 		}
 
 		cancel()

@@ -16,13 +16,6 @@
 
 package resolvers
 
-import (
-	"arisu.land/tsubaki/graphql/types"
-	"arisu.land/tsubaki/pkg"
-	"context"
-	"errors"
-)
-
 // example:
 // {
 //     search(query: "arisu", args: { type: PROJECT, page: 1 }) {
@@ -35,21 +28,21 @@ import (
 
 // Search is a GraphQL query to return data about a user or project
 // that is searched on the dashboard.
-func (r *Resolver) Search(ctx context.Context, args struct {
-	Query string
-	Args  struct {
-		Type types.SearchQueryType
-		Page *int32
-	}
-}) (*types.SearchQueryResult, error) {
-	if pkg.GlobalContainer.ElasticSearch == nil {
-		return nil, errors.New("elasticsearch is not available on this instance")
-	}
-
-	// Now we check if the query type is unknown!
-	if args.Args.Type == types.UNKNOWN {
-		//pkg.GlobalContainer.ElasticSearch.Search
-	}
-
-	return nil, nil
-}
+//func (r *Resolver) Search(ctx context.Context, args struct {
+//	Query string
+//	Args  struct {
+//		Type types.SearchQueryType
+//		Page *int32
+//	}
+//}) (*types.SearchQueryResult, error) {
+//	if pkg.GlobalContainer.ElasticSearch == nil {
+//		return nil, errors.New("elasticsearch is not available on this instance")
+//	}
+//
+//	// Now we check if the query type is unknown!
+//	if args.Args.Type == types.UNKNOWN {
+//		//pkg.GlobalContainer.ElasticSearch.Search
+//	}
+//
+//	return nil, nil
+//}

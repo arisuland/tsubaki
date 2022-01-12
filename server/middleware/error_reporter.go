@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/getsentry/sentry-go"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"time"
@@ -32,40 +33,47 @@ func ErrorReporter(next http.Handler) http.Handler {
 		if pkg.GlobalContainer.Sentry == nil {
 			defer func() {
 				if err := recover(); err != nil {
-					logrus.Fatalf("Received panic on route '%s %s': %v", req.Method, req.URL.Path, err)
+					// panic on client abort.
+					if err == http.ErrAbortHandler {
+						panic(err)
+					}
+
+					logrus.Errorf("Received panic on route '%s %s':", req.Method, req.URL.Path)
+					middleware.PrintPrettyStack(err)
+
+					w.WriteHeader(http.StatusInternalServerError)
 				}
 			}()
 
 			next.ServeHTTP(w, req)
-			return
-		}
-
-		ctx := req.Context()
-		hub := sentry.GetHubFromContext(ctx)
-		if hub == nil {
-			hub = sentry.CurrentHub().Clone()
-			ctx = sentry.SetHubOnContext(ctx, hub)
-		}
-
-		span := sentry.StartSpan(ctx, "tsubaki.server",
-			sentry.TransactionName(fmt.Sprintf("request %s %s", req.Method, req.URL.Path)),
-			sentry.ContinueFromRequest(req),
-		)
-
-		defer span.Finish()
-		req = req.WithContext(span.Context())
-		hub.Scope().SetRequest(req)
-		defer func() {
-			if err := recover(); err != nil {
-				logrus.Fatalf("Received panic on route '%s %s': %v", req.Method, req.URL.Path, err)
-
-				eventId := hub.RecoverWithContext(context.WithValue(req.Context(), sentry.RequestContextKey, req), err)
-				if eventId != nil {
-					hub.Flush(1 * time.Second)
-				}
+		} else {
+			ctx := req.Context()
+			hub := sentry.GetHubFromContext(ctx)
+			if hub == nil {
+				hub = sentry.CurrentHub().Clone()
+				ctx = sentry.SetHubOnContext(ctx, hub)
 			}
-		}()
 
-		next.ServeHTTP(w, req)
+			span := sentry.StartSpan(ctx, "tsubaki.server",
+				sentry.TransactionName(fmt.Sprintf("request %s %s", req.Method, req.URL.Path)),
+				sentry.ContinueFromRequest(req),
+			)
+
+			defer span.Finish()
+			req = req.WithContext(span.Context())
+			hub.Scope().SetRequest(req)
+			defer func() {
+				if err := recover(); err != nil {
+					logrus.Fatalf("Received panic on route '%s %s': %v", req.Method, req.URL.Path, err)
+
+					eventId := hub.RecoverWithContext(context.WithValue(req.Context(), sentry.RequestContextKey, req), err)
+					if eventId != nil {
+						hub.Flush(1 * time.Second)
+					}
+				}
+			}()
+
+			next.ServeHTTP(w, req)
+		}
 	})
 }

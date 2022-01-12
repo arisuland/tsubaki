@@ -17,12 +17,13 @@
 package graphql
 
 import (
-	"arisu.land/tsubaki/graphql/resolvers"
 	"encoding/json"
-	"github.com/graph-gophers/graphql-go"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
+
+	"arisu.land/tsubaki/graphql/resolvers"
+	"github.com/graph-gophers/graphql-go"
+	"github.com/sirupsen/logrus"
 )
 
 // Manager is the main manager for executing GraphQL queries/mutations/subscriptions.
@@ -38,32 +39,24 @@ type RequestBody struct {
 	Query         string                 `json:"query"`
 }
 
-func NewGraphQLManager() Manager {
-	return Manager{
-		Schema: nil,
-	}
-}
-
-// GenerateSchema returns a error if it cannot properly generate the schema
-// to be executable. Run `./build/codegen/schema` to generate the `schema.gql` file.
-func (m Manager) GenerateSchema() error {
-	logrus.Info("Generating GraphQL schema...")
+func NewGraphQLManager() (*Manager, error) {
+	logrus.Info("Building GraphQL schema...")
 	contents, err := ioutil.ReadFile("./schema.gql")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	opts := []graphql.SchemaOpt{graphql.UseFieldResolvers()}
-	content := string(contents)
-	schema := graphql.MustParseSchema(content, &resolvers.Resolver{}, opts...)
+	schema := graphql.MustParseSchema(string(contents), resolvers.NewResolver(), opts...)
 
-	logrus.Info("Successfully generated schema!")
-	m.Schema = schema
-	return nil
+	logrus.Info("Successfully built schema.")
+	return &Manager{
+		Schema: schema,
+	}, nil
 }
 
 // ServeHTTP is the middleware to host the /graphql endpoint for this Manager.
-func (m Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var params RequestBody
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 		logrus.Errorf("Unable to unmarshal payload:\n%v", err)

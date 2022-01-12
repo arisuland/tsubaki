@@ -18,3 +18,7 @@ package resolvers
 
 // Resolver is a empty struct to confine the GraphQL schema.
 type Resolver struct{}
+
+func NewResolver() *Resolver {
+	return &Resolver{}
+}

@@ -17,16 +17,18 @@
 package routes
 
 import (
+	"fmt"
+	"html/template"
+	"net/http"
+
 	"arisu.land/tsubaki/graphql"
 	"arisu.land/tsubaki/pkg"
 	"arisu.land/tsubaki/util"
-	"fmt"
 	"github.com/go-chi/chi/v5"
-	"html/template"
-	"net/http"
+	"github.com/sirupsen/logrus"
 )
 
-func NewGraphQLRouter(container *pkg.Container, manager graphql.Manager) chi.Router {
+func NewGraphQLRouter(container *pkg.Container, manager *graphql.Manager) chi.Router {
 	r := chi.NewRouter()
 	r.Post("/", manager.ServeHTTP)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +36,9 @@ func NewGraphQLRouter(container *pkg.Container, manager graphql.Manager) chi.Rou
 			t := template.New("graphql-playground")
 			t, err := t.Parse(util.PlaygroundTemplate)
 			if err != nil {
+				logrus.Errorf("Unable to parse Playground template: %v", err)
 				http.Error(w, err.Error(), 500)
+				return
 			}
 
 			data := util.PlaygroundTemplateData{
@@ -42,6 +46,7 @@ func NewGraphQLRouter(container *pkg.Container, manager graphql.Manager) chi.Rou
 			}
 
 			if err := t.ExecuteTemplate(w, "index", data); err != nil {
+				logrus.Errorf("Unable to execute template: %v", err)
 				http.Error(w, err.Error(), 500)
 			}
 
