@@ -1,0 +1,11 @@
+run:
+  timeout: 5m
+  issue-exit-code: 1
+  tests: false
+
+  skip-dirs:
+    # Ignore Prisma generated artifacts.
+    - prisma/gen
+
+output:
+  format: colored-line-number
