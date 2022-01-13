@@ -80,5 +80,3 @@ jobs:
 
       - name: Lint code
         uses: golangci/golangci-lint-action@v2
-        with:
-          version: 1.43.0
