@@ -1,5 +1,6 @@
 name: Lint on Commit
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'feature/**'
