@@ -21,6 +21,7 @@ on:
       - 'renovate.json'
 permissions:
   contents: read
+  pull-requests: read
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -59,6 +60,3 @@ jobs:
 
       - name: Format project for any formatting to apply
         run: make fmt
-
-      - name: Lint code
-        uses: golangci/golangci-lint-action@v2
