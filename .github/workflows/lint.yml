@@ -76,3 +76,8 @@ jobs:
            git add .
            git commit -m "chore: run \`go fmt\`"
            git push -u origin master
+
+      - name: Lint code
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: 1.43.0
