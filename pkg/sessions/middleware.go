@@ -17,18 +17,15 @@
 package sessions
 
 import (
-	"arisu.land/tsubaki/pkg"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
-)
 
-type response struct {
-	Message string `json:"message"`
-}
+	"arisu.land/tsubaki/pkg"
+	"github.com/sirupsen/logrus"
+)
 
 func (m SessionManager) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -50,9 +47,9 @@ func (m SessionManager) Middleware(next http.Handler) http.Handler {
 			decoded, err := pkg.DecodeToken(token)
 
 			if err != nil {
-				logrus.Errorf("Unable to decode session token '%s': %v", token, err)
+				logrus.Errorf("Unable to decode session token: %v", err)
 				w.WriteHeader(400)
-				_ = json.NewEncoder(w).Encode(&response{
+				_ = json.NewEncoder(w).Encode(&errorResponse{
 					Message: fmt.Sprintf("Invalid token: %s", token),
 				})
 
@@ -62,9 +59,9 @@ func (m SessionManager) Middleware(next http.Handler) http.Handler {
 			// validate token
 			validated, err := pkg.ValidateToken(token)
 			if err != nil {
-				logrus.Errorf("Unable to validate token '%s': %v", token, err)
+				logrus.Errorf("Unable to validate token: %v", err)
 				w.WriteHeader(400)
-				_ = json.NewEncoder(w).Encode(&response{
+				_ = json.NewEncoder(w).Encode(&errorResponse{
 					Message: fmt.Sprintf("Unable to validate token %s", token),
 				})
 
@@ -72,9 +69,9 @@ func (m SessionManager) Middleware(next http.Handler) http.Handler {
 			}
 
 			if !validated {
-				logrus.Errorf("Unable to validate token '%s'", token)
+				logrus.Errorf("Unable to validate session token")
 				w.WriteHeader(400)
-				_ = json.NewEncoder(w).Encode(&response{
+				_ = json.NewEncoder(w).Encode(&errorResponse{
 					Message: fmt.Sprintf("Unable to validate token %s", token),
 				})
 
@@ -85,7 +82,7 @@ func (m SessionManager) Middleware(next http.Handler) http.Handler {
 			uid, ok := decoded["user_id"].(string)
 			if !ok {
 				w.WriteHeader(500)
-				_ = json.NewEncoder(w).Encode(&response{
+				_ = json.NewEncoder(w).Encode(&errorResponse{
 					Message: "Unable to cast `user_id` ~> string.",
 				})
 
@@ -97,7 +94,7 @@ func (m SessionManager) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, req)
 		} else {
 			w.WriteHeader(406)
-			_ = json.NewEncoder(w).Encode(&response{
+			_ = json.NewEncoder(w).Encode(&errorResponse{
 				Message: "Missing `Bearer` or `Session` prefix.",
 			})
 		}

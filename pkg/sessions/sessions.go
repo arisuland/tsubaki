@@ -17,15 +17,16 @@
 package sessions
 
 import (
-	"arisu.land/tsubaki/graphql/types"
-	"arisu.land/tsubaki/pkg"
-	"arisu.land/tsubaki/prisma/db"
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
+
+	"arisu.land/tsubaki/graphql/types"
+	"arisu.land/tsubaki/pkg"
+	"arisu.land/tsubaki/prisma/db"
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 type errorResponse struct {

@@ -1,0 +1,182 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+project_name: tsubaki
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: "tsubaki"
+    binary: "tsubaki"
+    ldflags:
+      - -s -w -X arisu.land/tsubaki/internal.Version={{ .Version }} -X arisu.land/tsubaki/internal.CommitSHA={{ .CommitSHA }} -X arisu.land/tsubaki/internal.BuildDate={{ time "Mon, 02 Jan 2006 15:04:05 MST" }}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - "386"
+      - arm
+    goarm:
+      - "6"
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm64
+      - goarm:
+        goarch: "6"
+      - goarm:
+        goarch: "7"
+
+dockers:
+  - image_templates:
+      - arisuland/tsubaki:latest-amd64
+      - arisuland/tsubaki:{{ .Version }}-amd64
+      - arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-amd64
+      - ghcr.io/arisuland/tsubaki:latest
+      - ghcr.io/arisuland/tsubaki:latest-amd64
+      - ghcr.io/arisuland/tsubaki:{{ .Version }}-amd64
+      - ghcr.io/arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-amd64
+    ids:
+      - tsubaki
+    goarch: amd64
+    build_flag_templates:
+      - --platform=linux/amd64
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Translation made with simplicity, yet robust.
+      - --label=org.opencontainers.image.url=https://arisu.land
+      - --label=org.opencontainers.image.source=https://github.com/arisuland/tsubaki
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ .Date }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=MIT,GPL-3.0
+    dockerfile: Dockerfile
+    use: buildx
+
+  - image_templates:
+      - arisuland/tsubaki:latest-arm64
+      - arisuland/tsubaki:{{ .Version }}-arm64
+      - arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-arm64
+      - ghcr.io/arisuland/tsubaki:latest-arm64
+      - ghcr.io/arisuland/tsubaki:{{ .Version }}-arm64
+      - ghcr.io/arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-arm64
+    ids:
+      - tsubaki
+    goarch: arm64
+    goarm: ""
+    build_flag_templates:
+      - --platform=linux/arm64
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Translation made with simplicity, yet robust.
+      - --label=org.opencontainers.image.url=https://arisu.land
+      - --label=org.opencontainers.image.source=https://github.com/arisuland/tsubaki
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ .Date }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=MIT,GPL-3.0
+    dockerfile: Dockerfile
+    use: buildx
+
+  - image_templates:
+      - arisuland/tsubaki:latest-armv7
+      - arisuland/tsubaki:{{ .Version }}-armv7
+      - arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-armv7
+      - ghcr.io/arisuland/tsubaki:latest-armv7
+      - ghcr.io/arisuland/tsubaki:{{ .Version }}-armv7
+      - ghcr.io/arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-armv7
+    ids:
+      - tsubaki
+    goarch: arm
+    goarm: "7"
+    build_flag_templates:
+      - --platform=linux/arm64
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Translation made with simplicity, yet robust.
+      - --label=org.opencontainers.image.url=https://arisu.land
+      - --label=org.opencontainers.image.source=https://github.com/arisuland/tsubaki
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ .Date }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=MIT,GPL-3.0
+    dockerfile: Dockerfile
+    use: buildx
+  
+docker_manifests:
+  - name_template: arisuland/tsubaki:{{ .Version }}
+    image_templates:
+      - arisuland/tsubaki:{{ .Version }}-amd64
+      - arisuland/tsubaki:{{ .Version }}-arm64
+      - arisuland/tsubaki:{{ .Version }}-armv7
+
+  - name_template: ghcr.io/arisuland/tsubaki:{{ .Version }}
+    image_templates:
+      - ghcr.io/arisuland/tsubaki:{{ .Version }}-amd64
+      - ghcr.io/arisuland/tsubaki:{{ .Version }}-arm64
+      - ghcr.io/arisuland/tsubaki:{{ .Version }}-armv7
+
+  - name_template: arisuland/tsubaki:{{ .Major }}.{{ .Minor }}
+    image_templates:
+      - arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-amd64
+      - arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-arm64
+      - arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-armv7
+
+  - name_template: ghcr.io/arisuland/tsubaki:{{ .Major }}.{{ .Minor }}
+    image_templates:
+      - ghcr.io/arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-amd64
+      - ghcr.io/arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-arm64
+      - ghcr.io/arisuland/tsubaki:{{ .Major }}.{{ .Minor }}-armv7
+
+  - name_template: arisuland/tsubaki:latest
+    image_templates:
+      - arisuland/tsubaki:latest-amd64
+      - arisuland/tsubaki:latest-arm64
+      - arisuland/tsubaki:latest-armv7
+
+  - name_template: ghcr.io/arisuland/tsubaki:latest
+    image_templates:
+      - ghcr.io/arisuland/tsubaki:latest-amd64
+      - ghcr.io/arisuland/tsubaki:latest-arm64
+      - ghcr.io/arisuland/tsubaki:latest-armv7
+
+archives:
+  - id: default
+    builds:
+      - tsubaki
+    format_overrides:
+      - goos: windows
+        format: zip
+    replacements:
+      windows: Windows
+      darwin: Darwin
+      386: i386
+      amd64: x86_64
+
+brews:
+  - goarm: "6"
+    tap:
+      owner: Noelware
+      name: homebrew-taps
+      token: "{{ .Env.HOMEBREW_TAP_GH_PAT }}"
+    commit_author:
+      name: "Noel"
+      email: "cutie@floofy.dev"
+    homepage: https://arisu.land
+    description: Translation made with simplicity, yet robust.
+
+signs:
+  - artifacts: checksum
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-SNAPSHOT"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
