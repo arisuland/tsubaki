@@ -19,9 +19,10 @@ package ratelimit
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 type ratelimitedResponse struct {
@@ -154,7 +155,7 @@ func (rl Ratelimiter) Get(ip string) *Ratelimit {
 	var ratelimit *Ratelimit
 	err = json.Unmarshal([]byte(res), &ratelimit)
 	if err != nil {
-		logrus.Warnf("Unable to unmarshal ratelimit for IP %s, using new ratelimit packet", ip)
+		logrus.Warnf("Unable to unmarshal ratelimit; using new ratelimit packet")
 
 		l := newRatelimit()
 		ratelimit = &l

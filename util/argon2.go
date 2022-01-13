@@ -17,12 +17,13 @@
 package util
 
 import (
+	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
-	"golang.org/x/crypto/argon2"
-	"math/rand"
 	"strings"
+
+	"golang.org/x/crypto/argon2"
 )
 
 // GeneratePassword creates a password based off the Argon2 specification using
