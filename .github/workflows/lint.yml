@@ -20,6 +20,8 @@ on:
       - '**.md'
       - 'LICENSE'
       - 'renovate.json'
+permissions:
+  contents: read
 jobs:
   lint:
     runs-on: ubuntu-latest
