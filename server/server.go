@@ -25,7 +25,6 @@ import (
 	"syscall"
 	"time"
 
-	"arisu.land/tsubaki/graphql"
 	"arisu.land/tsubaki/internal"
 	"arisu.land/tsubaki/pkg"
 	"arisu.land/tsubaki/pkg/ratelimit"
@@ -56,10 +55,10 @@ func Start(path string) error {
 		return err
 	}
 
-	gql, err := graphql.NewGraphQLManager()
-	if err != nil {
-		return err
-	}
+	// gql, err := graphql.NewGraphQLManager()
+	// if err != nil {
+	// 	return err
+	// }
 
 	logrus.Info("Starting up HTTP server!")
 	rl := ratelimit.NewRatelimiter(pkg.GlobalContainer.Redis)
@@ -76,7 +75,7 @@ func Start(path string) error {
 	router.Mount("/api/v1", api.NewApiV1Router())
 	router.Mount("/metrics", routes.NewMetricsRouter())
 	router.Mount("/version", routes.NewVersionRouter())
-	router.Mount("/graphql", routes.NewGraphQLRouter(pkg.GlobalContainer, gql))
+	// router.Mount("/graphql", routes.NewGraphQLRouter(pkg.GlobalContainer, gql))
 	router.Mount("/integrations", integrations.NewIntegrationsRouter())
 
 	addr := fmt.Sprintf("%s:%d", pkg.GlobalContainer.Config.Host, pkg.GlobalContainer.Config.Port)
@@ -88,7 +87,7 @@ func Start(path string) error {
 
 	// Listen for syscall signals so Docker can properly destroy the server
 	sigint := make(chan os.Signal, 1)
-	signal.Notify(sigint, syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigint, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		logrus.Infof("Listening under '%s'!", addr)

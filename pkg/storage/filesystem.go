@@ -177,7 +177,7 @@ func (fs FilesystemProvider) HandleUpload(files []UploadRequest) error {
 		logrus.Debugf("Taking care of file %s for project %s/%s", file.Name, file.Owner, file.Project)
 
 		// Retrieving the metadata lock will create the directory + file itself.
-		m, err := fs.GetMetadata(file.Project, file.Owner)
+		m, err := fs.GetMetadata(file.Owner, file.Project)
 		if err != nil {
 			return err
 		}

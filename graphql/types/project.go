@@ -1,8 +1,9 @@
 package types
 
 import (
-	"arisu.land/tsubaki/prisma/db"
 	"time"
+
+	"arisu.land/tsubaki/prisma/db"
 )
 
 // Project is a project that belongs to a User or Organization.
@@ -35,7 +36,6 @@ func FromProjectModel(model *db.ProjectModel) Project {
 	}
 
 	owner := model.Owner()
-
 	return Project{
 		Description: desc,
 		UpdatedAt:   model.UpdatedAt.Format(time.RFC3339),

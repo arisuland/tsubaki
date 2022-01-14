@@ -17,12 +17,16 @@
 package storage
 
 import (
+	"fmt"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/mushroomsir/mimetypes"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 // Provider is the S3 provider to use the endpoints from
@@ -118,13 +122,13 @@ type S3StorageProvider struct {
 }
 
 func NewS3StorageProvider(config *S3StorageConfig) BaseStorageProvider {
-	return S3StorageProvider{
+	return &S3StorageProvider{
 		config: config,
 		client: nil,
 	}
 }
 
-func (s S3StorageProvider) Init() error {
+func (s *S3StorageProvider) Init() error {
 	logrus.Info("Now creating S3 client...")
 
 	cfg := aws.NewConfig().WithRegion(s.config.Region)
@@ -192,14 +196,69 @@ func (s S3StorageProvider) Init() error {
 	return nil
 }
 
-func (s S3StorageProvider) Name() string {
+func (s *S3StorageProvider) Name() string {
 	return "s3"
 }
 
-func (s S3StorageProvider) GetMetadata(id string, project string) (*ProjectMetadata, error) {
+func (s *S3StorageProvider) GetMetadata(id string, project string) (*ProjectMetadata, error) {
+	logrus.Debugf("Told to grab project metadata for project %s/%s!", id, project)
+
+	// Check if it exists
+	out, err := s.client.GetObject(&s3.GetObjectInput{
+		Bucket: &s.config.Bucket,
+		Key:    aws.String(fmt.Sprintf("%s/%s/metadata.lock", id, project)),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(out)
 	return nil, nil
 }
 
-func (s S3StorageProvider) HandleUpload(files []UploadRequest) error {
+func (s *S3StorageProvider) HandleUpload(files []UploadRequest) error {
+	logrus.Debugf("Told to handle %d files!", len(files))
+	t := time.Now()
+
+	for _, file := range files {
+		logrus.Debugf("Now taking care of file %s for project %s/%s", file.Name, file.Owner, file.Project)
+
+		// Retrieve the metadata lock for this project
+		meta, err := s.GetMetadata(file.Owner, file.Project)
+		if err != nil {
+			logrus.Errorf("Unable to retrieve metadata lockfile for project %s/%s: %v", file.Owner, file.Project, err)
+			return err
+		}
+
+		logrus.Debugf("Using format version %d for project %s/%s", meta.FormatVersion.Int(), file.Owner, file.Project)
+
+		// Figure out the mime-type ahead of time.
+		var mimeType string
+		if strings.Contains(file.Name, ".") {
+			mimeType = mimetypes.Lookup(file.Name)
+		} else {
+			// TODO: check for shell bangs in file content
+			mimeType = "application/octet-stream"
+		}
+
+		logrus.Debugf("Figured out that file %s has a mime type of %s!", file.Name, mimeType)
+		key := fmt.Sprintf("%s/%s/%s", file.Owner, file.Project, file.Name)
+
+		// Check if the object exists
+		out, err := s.client.GetObject(&s3.GetObjectInput{
+			Bucket: &s.config.Bucket,
+			Key:    aws.String(key),
+		})
+
+		if err != nil {
+			logrus.Errorf("Unable to retrieve object with key %s from S3: %v", key, err)
+			return err
+		}
+
+		fmt.Println(out)
+	}
+
+	logrus.Debugf("Took %s to handle %d files.", time.Since(t).String(), len(files))
 	return nil
 }

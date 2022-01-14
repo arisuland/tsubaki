@@ -14,260 +14,309 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# Represents all the queries you can create using the GraphQL endpoint.
-# Most of the queries do not require authentication.
-type Query {
-    # Returns a list of subprojects in a [Project] object.
-    #
-    # @param projectId ~ The project ID to retrieve from.
-    # @return [Array<Subproject>] ~ A list of subprojects that
-    # belong in this [Project]. If none were registered, then
-    # this will be an empty array.
-#    subprojects(projectId: String!, pagination: PaginationOptions): [Subproject!]!
+####################################################
+############## QUERIES / MUTATIONS ################
+##################################################
 
-    # Retrieves the list of projects for any user by their [uid].
-    # This query also includes pagination options for easily
-    # pagination.
-#    projects(pagination: PaginationOptions): [Project!]!
-
-#    # Returns the access tokens registered to this current user.
-#    accessTokens: [AccessToken!]!
+# A list of queries you can query the API with. Most of these
+# do not require authentication. If they do, they will be
+# noticed in the query descriptor.
 #
-#    # Returns a project's metadata with the provided [id].
-#    #
-#    # @param id ~ The project ID to retrieve from.
-#    # @return [Project?] ~ Returns the project metadata.
-#    project(id: String): Project
+# Read our documentation for a concise and clearer UI:
+# https://docs.arisu.land/graphql/queries
+type Query {
+  # Returns a list of the current user's access tokens. For security
+  # reasons, the token will not be displayed in the returned results.
+  #
+  # @returns ~ The user's access token information.
+  accessTokens: [AccessToken!]!
 
-    # A test query to see if the connection is working.
-    hello: String!
+  # Queries all of the project's ACLs. If there is no ACLs,
+  # this will return a empty array. Read more
+  # about Project Access Control Lists:
+  # https://docs.arisu.land/
+  #
+  # @param idOrName ~ The project's display name or ID.
+  # @returns ~ A list of Project ACLs. This is stored
+  # in the project's directory, you can call from
+  # the storage API.
+  projectAcls(idOrName: String!): [ProjectACL!]!
 
-    # Retrieve a user from the database
-    #
-    # @param id ~ The user's ID to retrieve from
-    # @return [User?] ~ Returns the user's metadata excluding
-    # masked information (password, email) or `null` if nothing
-    # was found.
-#    user(id: String!): User
+  # Search a project or user with this query. This powers
+  # the search bar you can see on Fubuki. Since users
+  # and projects are indexed on ElasticSearch, this is the
+  # query to get a result fast. If ElasticSearch is not
+  # enabled on this instance, this will return a error only.
+  #
+  # @param query ~ The query string to provide.
+  # @param options ~ The options for querying user or project metadata.
+  # @returns ~ The result from ElasticSearch or a error object
+  # that the search engine is not available.
+  search(query: String!, options: QueryOptions): QueryResult!
 
-    # Returns the user information that is currently logged in.
-    # This returns `null` if no user was registered.
-#    me: SelfUser
+  # Retrieves a list of [Project]s by its pagination options.
+  #
+  # @param options ~ Optional options to query from.
+  # @returns ~ Array<Project>
+  projects(options: PaginationOptions): [Project!]!
+
+  # Returns a project by its ID or display name.
+  #
+  # @param idOrName ~ The project's display name or ID.
+  # @returns ~ Project?
+  project(idOrName: String!): Project
+  
+  # Returns a user by their ID or display name.
+  #
+  # @param idOrName ~ Their display name or ID.
+  # @returns ~ User?
+  user(idOrName: String!): User
+
+  # Returns a simple "hello world" message to test
+  # that the GraphQL API is working.
+  hello: String!
+
+  # Returns the current user context based off their access
+  # or session token.
+  #
+  # @returns ~ SelfUser
+  me: SelfUser
 }
 
-# Mutations are a way to modify any Tsubaki object, but most mutations require
-# authentication. Read more about authentication on our documentation:
-# https://docs.arisu.land/graphql#authentication
-#type Mutation {
-    # Re-enables the user's account.
-#    reenableUser: Boolean!
+# Mutations are a way to destroy, update, or create
+# Tsubaki objects. Most mutations require authentication.
+type Mutation {
+  # Register an access token with `name` as the name and `expiresIn`
+  # when the access token expires, if `expiresIn=null`, it will not
+  # expire.
+  #
+  # @param name ~ The name of the access token
+  # @param expiresIn ~ How long this token should last. It is not recommended
+  # to create a non-expiring access token.
+  # @returns ~ The newly created access token. :D
+  createAccessToken(name: String!, expiresIn: String): AccessToken!
 
-    # Update a user's metadata.
-#    updateUser(args: UpdateUserArgs!): Boolean!
+  # Registers a subproject in a parent project. You cannot nest subprojects
+  # into subprojects. Subprojects will inherit project permissions.
+  #
+  # @param projectId ~ The parent project ID.
+  # @param name ~ The name of the project
+  # @param description ~ The subproject's description, if any.
+  # @returns ~ The newly created subproject.
+  createSubproject(projectId: String!, name: String!, description: String): Subproject!
 
-    # Disable the current user. This doesn't completely wipe all the data,
-    # it only locks the user from their account.
-#    disableUser: Boolean!
+  # Registers a project for the current user. Read more about
+  # what projects are: https://docs.arisu.land/getting-started/your-first-project
+  #
+  # @param name ~ The name of the project.
+  # @param description ~ The project's description, if any.
+  # @returns ~ The newly created project.
+  createProject(name: String!, description: String): Project!
 
-    # Deletes the current user from the database, in which, it will:
-    #   - delete all metadata
-    #   - delete all projects
-    #   - delete all sessions
-    #
-    # If you wish to disable the account for the current user, use the
-    # [disableUser] mutation.
-    #
-    # @returns [Boolean] ~ If the action succeeded.
-#    deleteUser: Boolean!
+  # Updates a subproject's metadata from the parent project its in.
+  #
+  # @param projectId ~ The project's ID.
+  # @param id ~ The subproject's ID.
+  # @param args ~ The metadata to update the information.
+  # @returns ~ Returns a Result object of the underlying errors, if any.
+  updateSubproject(projectId: String!, id: String!, args: UpdateSubprojectArgs!): Result!
 
-    # Creates a new user and returns a [User] object.
-    #
-    # @param email ~ The email to register the user as
-    # @param password ~ The password to use when registering
-    # @param username ~ The unique username
-    # @returns [User?] ~ Returns a new [User] object or `nil` if any
-    # errors occur.
-#    createUser(email: String!, password: String!, username: String!): User
+  # Update a project's metadata information.
+  #
+  # @param id ~ The project's ID.
+  # @param args ~ The metadata to update.
+  # @returns ~ Returns a Result object of the underlying errors, if any.
+  updateProject(id: String!, args: UpdateProjectArgs!): Result!
 
-    # Logs out the current user and deletes their session token.
-#    logout: Boolean!
+  # Update the current user's metadata information.
+  #
+  # @param args ~ The metadata to update.
+  # @returns ~ Returns a Result object of the underlying errors, if any.
+  updateUser(args: UpdateUserArgs!): Result!
 
-    # Login in the current user and creates a session token for them that
-    # lasts for 2 days.
-    #
-    # @param usernameOrEmail ~ The username or the email to sign-in as.
-    # @param password ~ The raw password to use to sign-in.
-    # @return [LoginResult] ~ The result of this login.
-#    login(usernameOrEmail: String!, password: String!): LoginResult!
-#}
+  # Deletes a subproject from the database and clears it from the
+  # storage provider's filesystem. This cannot be reversed.
+  #
+  # @param projectId ~ The parent project ID.
+  # @param id ~ The subproject ID.
+  # @returns ~ Returns a Result object of the underlying errors, if any.
+  deleteSubproject(projectId: String!, id: String!): Result!
 
+  # Deletes a project from the database and clears it from the
+  # storage provider's filesystem. This cannot be reversed.
+  #
+  # @param id ~ The project ID.
+  # @returns ~ Returns a Result object of the underlying errors, if any.
+  deleteProject(id: String!): Result!
+
+  # Deletes the current user from the database and revokes
+  # all access tokens + session tokens. Projects will
+  # be deleted also and you cannot recover them.
+  #
+  # @param includeFromDb ~ If this option is enabled, a new field called
+  # "data" will be enlisted to you. This includes the information
+  # we stored in the database (user metadata and projects).
+  #
+  # @returns ~ Returns a Result object of `success=false` if the database
+  # cannot delete the user or `success=true` that everything has been
+  # deleted.
+  deleteUser(includeFromDb: Boolean!): DeleteUserResult!
+
+  # Signs a user up into the database, with their email and password.
+  #
+  # @param username ~ The unique username this user has.
+  # @param email ~ The email this user will be tied to.
+  # @param password ~ The raw password to encrypt.
+  # @param extra ~ The extra metadata to add into the database
+  # @returns ~ The signup result, of any errors with a `user` field.
+  signup(username: String!, email: String!, password: String!, extra: ExtraSignupMetadata): SignupResult!
+
+  # Login in the current user and creates a session token for them that
+  # lasts for 2 days.
+    
+  # @param usernameOrEmail ~ The username or the email to sign-in as.
+  # @param password ~ The raw password to use to sign-in.
+  # @returns ~ The result of this login.
+  login(usernameOrEmail: String!, password: String!): LoginResult!
+
+  # Deletes the user's session, prompting them to be re-logged in.
+  #
+  # @returns ~ Returns a Result object of the underlying errors, if any.
+  signout: Result!
+}
+
+####################################################
+################ TSUBAKI OBJECTS ##################
+##################################################
+
+# Represents a user's account. You can query it using
+# the `user` query.
 # Represents a user account.
-#type User {
-#    # The user's description that is embedded on the site. Tells a bit
-#    # about themself.
-#    description: String
-#
-#    # Returns a DateTime on when the user has updated their account.
-#    updatedAt:   String!
-#
-#    # Returns a DateTime on when the user has created their account.
-#    createdAt:   String!
-#
-#    # Returns a list of projects created by the user.
-#    projects:    [Project!]!
-#
-#    # The user's unique username.
-#    username:    String!
-#
-#    # If this user has been disabled by a moderator, administrator,
-#    # or they disabled it on their own. You can check for the last one
-#    # with the UserFlags.DISABLED flag in User.flags
-#    disabled:    Boolean!
-#
-#    # Returns the flags of a User, this can represent their permissions
-#    # globally from Arisu.
-#    flags:       Int!
-#
-#    # The user's name that is embedded on the site.
-#    name:        String
-#
-#    # Snowflake of when this User was generated in.
-#    id:          String!
-#}
+type User {
+  # The user's description that is embedded on the site. Tells a bit
+  # about themself.
+  description: String
+
+  # Returns a DateTime on when the user has updated their account.
+  updatedAt:   String!
+
+  # Returns a DateTime on when the user has created their account.
+  createdAt:   String!
+
+  # Returns a list of projects created by the user.
+  projects:    [Project!]!
+
+  # The user's unique username.
+  username:    String!
+
+  # Returns the flags of a User, this can represent their permissions
+  # globally from Arisu.
+  flags:       Int!
+
+  # The user's name that is embedded on the site.
+  name:        String
+
+  # Snowflake of when this User was generated in.
+  id:          String!
+}
 
 # SelfUser is a [User] that has a `session` property about the current
 # session details.
-#type SelfUser {
-    # Session details for this [User].
-#    session: UserSession!
-#
-#    # The user's description that is embedded on the site. Tells a bit
-#    # about themself.
-#    description: String
-#
-#    # Returns a DateTime on when the user has updated their account.
-#    updatedAt:   String!
-#
-#    # Returns a DateTime on when the user has created their account.
-#    createdAt:   String!
-#
-#    # Returns a list of projects created by the user.
-#    projects:    [Project!]!
-#
-#    # The user's unique username.
-#    username:    String!
-#
-#    # If this user has been disabled by a moderator, administrator,
-#    # or they disabled it on their own. You can check for the last one
-#    # with the UserFlags.DISABLED flag in User.flags
-#    disabled:    Boolean!
-#
-#    # Returns the flags of a User, this can represent their permissions
-#    # globally from Arisu.
-#    flags:       Int!
-#
-#    # The user's name that is embedded on the site.
-#    name:        String
-#
-#    # Snowflake of when this User was generated in.
-#    id:          String!
-#}
+type SelfUser {
+  # Session details for this [User].
+  session:     UserSession!
+
+  # The user's description that is embedded on the site. Tells a bit
+  # about themself.
+  description: String
+
+  # Returns a DateTime on when the user has updated their account.
+  updatedAt:   String!
+
+  # Returns a DateTime on when the user has created their account.
+  createdAt:   String!
+
+  # Returns a list of projects created by the user.
+  projects:    [Project!]!
+
+  # The user's unique username.
+  username:    String!
+
+  # Returns the flags of a User, this can represent their permissions
+  # globally from Arisu.
+  flags:       Int!
+
+  # The user's name that is embedded on the site.
+  name:        String
+
+  # Snowflake of when this User was generated in.
+  id:          String!
+}
 
 # UserSession is the current user session that is attached
 # when querying the `me` query.
-#type UserSession {
-#    # How long it will expires in a ISO8601 formatted string.
-#    expiresIn: String!
-#
-#    # The type this session originates from, at this point in time,
-#    # it is only represented as "web" for now.
-#    type:      String!
-#}
+type UserSession {
+  # How long it will expires in a ISO8601 formatted string.
+  expiresIn: String!
+
+  # The type this session originates from, at this point in time,
+  # it is only represented as "web" for now.
+  type:      String!
+}
 
 # Represents a user or organization project.
-#type Project {
-#    # The project's description that is embedded on the site.
-#    description: String
-#
-#    # Returns a ISO-8601 formatted date on when the user has updated their account.
-#    updatedAt:   String!
-#
-#    # Returns a list of [Subproject]s available in this parent [Project].
-#    # This will be an empty array if none were created.
-##    subprojects: [Subproject!]!
-#
-#    # Returns a ISO-8601 formatted date on when the user has created their account.
-#    createdAt:   String!
-#
-#    # The owner of this project.
-#    owner:       User!
-#
-#    # Returns the flags of a Project, this can represent their permissions
-#    # globally from Arisu.
-#    flags:       Int!
-#
-#    # The name of the project.
-#    name:        String!
-#
-#    # Snowflake of when this User was generated in.
-#    id:          String!
-#}
+type Project {
+  # The project's description that is embedded on the site.
+  description: String
 
-## Subproject is a project that lives under a parent [Project]. Think of this
-## as the parent project as a monorepo with multiple subprojects.
-##
-## Subprojects inherit all permissions and flags from the parent project and
-## will reflect if the parent project has updated the permissions and/or flags.
-#type Subproject {
-#    # The project's description that is embedded on the site.
-#    description: String
-#
-#    # Returns a ISO-8601 formatted date on when the subproject was updated.
-#    updatedAt:   String!
-#
-#    # Returns a ISO-8601 formatted date on when the subproject was created in.
-#    createdAt:   String!
-#
-#    # The parent project that lives in this [Subproject].
-#    parent:      Project!
-#
-#    # The name of the subproject.
-#    name:        String!
-#
-#    # Snowflake of when this Subproject was generated in.
-#    id:          String!
-#}
-#
-## Result is a object that returns no errors or some errors that
-## conflicted with the operation.
-#type Result {
-#    # If this [Result] was a success or not.
-#    success: Boolean!
-#
-#    # A list of errors of what went wrong.
-#    errors: [Error!]!
-#}
+  # Returns a ISO-8601 formatted date on when the user has updated their account.
+  updatedAt:   String!
 
-#type LoginResult {
-#    # If this [Result] was a success or not.
-#    success: Boolean!
+  # Returns a list of [Subproject]s available in this parent [Project].
+  # This will be an empty array if none were created.
+  subprojects: [Subproject!]!
+
+  # Returns a ISO-8601 formatted date on when the user has created their account.
+  createdAt:   String!
+
+  # The owner of this project.
+  owner:       User!
+
+  # Returns the flags of a Project, this can represent their permissions
+  # globally from Arisu.
+  flags:       Int!
+
+  # The name of the project.
+  name:        String!
+
+  # Snowflake of when this User was generated in.
+  id:          String!
+}
+
+# Subproject is a project that lives under a parent [Project]. Think of this
+# as the parent project as a monorepo with multiple subprojects.
 #
-#    # A list of errors of what went wrong.
-#    errors: [Error!]!
-#
-#    # The session token that expires every 2 days.
-#    token: String!
-#}
-#
-## Error is a object that shows the errors in a [Result].
-#type Error {
-#    # The message on why it errored.
-#    message: String!
-#
-#    # The code that this [Error] is associated with. A list
-#    # of errors can be found on our [docs](https://docs.arisu.land/graphql/reference#error-codes).
-#    code: Int!
-#}
+# Subprojects inherit all permissions and flags from the parent project and
+# will reflect if the parent project has updated the permissions and/or flags.
+type Subproject {
+  # The project's description that is embedded on the site.
+  description: String
+
+  # Returns a ISO-8601 formatted date on when the subproject was updated.
+  updatedAt:   String!
+
+  # Returns a ISO-8601 formatted date on when the subproject was created in.
+  createdAt:   String!
+
+  # The parent project that lives in this [Subproject].
+  parent:      Project!
+
+  # The name of the subproject.
+  name:        String!
+
+  # Snowflake of when this Subproject was generated in.
+  id:          String!
+}
 
 # AccessToken represents an access token from an oauth2 application
 # or created by the supplied [User].
@@ -280,99 +329,170 @@ type Query {
 # Session tokens cannot be reached from the GraphQL API due to security reasons
 # while access tokens *can* but with the current user's session token, in which,
 # you can only get through the [login] method.
-#type AccessToken {
-#    # The available [scopes][AccessTokenScope] for this [AccessToken]. Think of this
-#    # as "permissions" the token has.
-#    scopes: [AccessTokenScope!]!
-#
-#    # The token itself.
-#    token: String!
-#
-#    # The [User] that this [AccessToken] belongs to.
-#    user: User!
-#}
+type AccessToken {
+  # The available [AccessTokenScope] for this [AccessToken]. Think of this
+  # as "permissions" the token has.
+  scopes: [AccessTokenScope!]!
 
-# Options object for pagination of any [Project]s.
-#input PaginationOptions {
-#    take: Int
-#    skip: Int
-#    sortBy: SortOrder
-#}
-#
-## UpdateUserArgs is a input field to update a [User].
-#input UpdateUserArgs {
-#    # Sets the newly description of a [User]. Must be 240 characters
-#    # or shorter.
-#    description: String
-#
-#    # The new username to set. If the username is already taken,
-#    # it will error.
-#    username: String
-#
-#    # The name to use for this user to show on the site.
-#    name: String
-#}
+  # Returns the access token name that the user has
+  # provided.
+  name:    String!
+}
 
-## NewProjectArgs is a input field to create a new [Project].
-#input NewProjectArgs {
-#    # The description of the [Project].
-#    description: String
-#
-#    # The name of the project.
-#    name: String!
-#}
-#
-## NewSubprojectArgs is a input field to create a new [Subproject] in a [Project].
-#input NewSubprojectArgs {
-#    # The description of the [Project].
-#    description: String
-#
-#    # The name of the project.
-#    name: String!
-#}
+#########################################################
+############## INPUT ARGS / RETURN TYPES ################
+#########################################################
 
-## UpdateProjectArgs is a input argument that updates a project's metadata.
-#input UpdateProjectArgs {
-#    # The description of the [Project].
-#    description: String
+# The Result object is a common return type that represents the
+# result of an action. This includes a `success` and `error` 
+type Result {
+  # Yields a boolean if the action was successful or not.
+  # If it was not successful, look at the [errors object][Result.errors]!
+  success: Boolean!
+
+  # Returns a list of [Error] objects if `success` yields false.
+  # This gives a descriptive feedback + error code on why the action
+  # has failed.
+  errors:  [Error!]!
+}
+
+# This is a type that extends `Result`, but not really.
+# Since GraphQL doesn't have inheritance, this is
+# just copied from `Result`.
 #
-#    # The name of the project.
-#    name: String
-#}
+# This result object is represented in the `login` mutation.
 #
-## UpdateSubprojectArgs is a input argument that updates a subproject's metadata.
-#input UpdateSubprojectArgs {
-#    # The description of the [Project].
-#    description: String
+# @extends Result
+type LoginResult {
+  # Yields a boolean if the action was successful or not.
+  # If it was not successful, look at the [errors object][Result.errors]!
+  success: Boolean!
+
+  # Returns a list of [Error] objects if `success` yields false.
+  # This gives a descriptive feedback + error code on why the action
+  # has failed.
+  errors:  [Error!]!
+
+  # Returns the token to store into localStorage
+  # or whatever.
+  token:   String
+}
+
+# This is a type that extends `Result`, but not really.
+# Since GraphQL doesn't have inheritance, this is
+# just copied from `Result`.
 #
-#    # The name of the project.
-#    name: String
-#}
+# This result object is represented in the `signup` mutation.
 #
+# @extends Result
+type SignupResult {
+  # Yields a boolean if the action was successful or not.
+  # If it was not successful, look at the [errors object][Result.errors]!
+  success: Boolean!
+
+  # Returns a list of [Error] objects if `success` yields false.
+  # This gives a descriptive feedback + error code on why the action
+  # has failed.
+  errors:  [Error!]!
+
+  # Returns the created user data.
+  user:    User!
+}
+
+# This is a type that extends `Result`, but not really.
+# Since GraphQL doesn't have inheritance, this is
+# just copied from `Result`.
+#
+# This result object is represented in the `query` mutation
+#
+# @extends Result
+type QueryResult {
+  # Returns a list of projects that were found.
+  projects: [Project!]!
+
+  # Yields a boolean if the action was successful or not.
+  # If it was not successful, look at the [errors object][Result.errors]!
+  success: Boolean!
+
+  # Returns a list of [Error] objects if `success` yields false.
+  # This gives a descriptive feedback + error code on why the action
+  # has failed.
+  errors:  [Error!]!
+
+  # Returns a list of users that were found.
+  users: [User!]!
+}
+
 ## AccessTokenScope is a enum that represents all the scopes
 ## in a [AccessToken] object.
-#enum AccessTokenScope {
-#    # PUBLIC_WRITE grants the OAuth2 application to write any data
-#    # to any repository that grants the user with the ALLOW_WRITE permission.
-#    PUBLIC_WRITE
-#
-#    # REPO_CREATE grants the OAuth2 application to create any project
-#    # or subproject.
-#    REPO_CREATE
-#
-#    # REPO_DELETE grants the OAuth2 application to delete any project or subproject.
-#    REPO_DELETE
-#
-#    # REPO_UPDATE grants the OAuth2 application or yourself through our API to
-#    # update a project or subproject's information
-#    REPO_UPDATE
-#}
+enum AccessTokenScope {
+  # PUBLIC_WRITE grants the OAuth2 application to write any data
+  # to any repository that grants the user with the ALLOW_WRITE permission.
+  PUBLIC_WRITE
+
+  # REPO_CREATE grants the OAuth2 application to create any project
+  # or subproject.
+  REPO_CREATE
+
+  # REPO_DELETE grants the OAuth2 application to delete any project or subproject.
+  REPO_DELETE
+
+  # REPO_UPDATE grants the OAuth2 application or yourself through our API to
+  # update a project or subproject's information
+  REPO_UPDATE
+}
 
 # The sorting order for pagination-based queries.
-#enum SortOrder {
-    # Ascending order
-#    ASC
+enum SortOrder {
+  # Ascending order
+  ASC
 
-    # Descending order
-#    DESC
-#}
+  # Descending order
+  # DESC
+}
+
+# UpdateProjectArgs is a input argument that updates a project's metadata.
+input UpdateProjectArgs {
+  # The description of the [Project].
+  description: String
+
+  # The name of the project.
+  name: String
+}
+
+# UpdateSubprojectArgs is a input argument that updates a subproject's metadata.
+input UpdateSubprojectArgs {
+  # The description of the [Project].
+  description: String
+
+  # The name of the project.
+  name: String
+}
+
+# UpdateUserArgs is a input field to update a [User].
+input UpdateUserArgs {
+  # Sets the newly description of a [User]. Must be 240 characters
+  # or shorter.
+  description: String
+
+  # The new username to set. If the username is already taken,
+  # it will error.
+  username: String
+
+  # The name to use for this user to show on the site.
+  name: String
+}
+
+# The arguments for pagination-based queries.
+input PaginationOptions {
+  # The sort order to use. By default, it will use [SortOrder.ASC]
+  sortOrder: SortOrder
+
+  # The limit of elements to return after a provided
+  # starting index. This defaults to `10`.
+  take: Int
+
+  # Skipping elements by the integer provided and collecting
+  # elements with the same, fixed integer. This by default returns `0`,
+  skip: Int
+}
