@@ -18,7 +18,13 @@ package result
 
 // LoginResult is a Result object but with a `token` property.
 type LoginResult struct {
-	Result
+	// Success represents if the result of this action
+	// was successful or not.
+	Success bool `json:"success"`
+
+	// Errors represents a list of Error objects
+	// if `success=false`.
+	Errors []Error `json:"errors"`
 
 	// Token results the session token, you will be only
 	// able to see this once.

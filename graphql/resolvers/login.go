@@ -16,126 +16,133 @@
 
 package resolvers
 
-import "context"
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"arisu.land/tsubaki/graphql/types/result"
+	"arisu.land/tsubaki/pkg/sessions"
+	"arisu.land/tsubaki/prisma/db"
+	"arisu.land/tsubaki/util"
+)
 
 func (r *Resolver) Login(
 	ctx context.Context,
 	usernameOrEmail string,
 	password string,
-) error {
-	return nil
+) (*result.LoginResult, error) {
+	user, err := r.Container.Prisma.User.FindUnique(
+		db.User.Username.Equals(usernameOrEmail),
+	).Exec(context.TODO())
+
+	if err != nil {
+		// Check if the username wasn't found, so let's check the email!
+		if errors.Is(err, db.ErrNotFound) {
+			user, err = r.Container.Prisma.User.FindUnique(
+				db.User.Email.Equals(usernameOrEmail),
+			).Exec(context.TODO())
+
+			if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					return &result.LoginResult{
+						Token:   "",
+						Success: false,
+						Errors: []result.Error{
+							{
+								Message: fmt.Sprintf("Username or email %s doesn't exist.", usernameOrEmail),
+								Code:    -1,
+							},
+						},
+					}, nil
+				}
+
+				return &result.LoginResult{
+					Token:   "",
+					Success: false,
+					Errors: []result.Error{
+						{
+							Message: fmt.Sprintf("Unable to retrieve user: %v", err),
+							Code:    -1,
+						},
+					},
+				}, nil
+			}
+		} else {
+			return &result.LoginResult{
+				Token:   "",
+				Success: false,
+				Errors: []result.Error{
+					{
+						Message: fmt.Sprintf("Unable to retrieve user: %v", err),
+						Code:    -1,
+					},
+				},
+			}, nil
+		}
+	}
+
+	// Check if the password is correct
+	match, err := util.VerifyPassword(password, user.Password)
+	if err != nil {
+		return &result.LoginResult{
+			Token:   "",
+			Success: false,
+			Errors: []result.Error{
+				{
+					Message: "Unable to decode password.",
+					Code:    -1,
+				},
+			},
+		}, nil
+	}
+
+	if !match {
+		return &result.LoginResult{
+			Token:   "",
+			Success: false,
+			Errors: []result.Error{
+				{
+					Message: "Invalid password.",
+					Code:    int32(1002),
+				},
+			},
+		}, nil
+	}
+
+	// Create the session
+	sess := sessions.Sessions.New(user.ID)
+	if sess == nil {
+		return &result.LoginResult{
+			Token:   "",
+			Success: false,
+			Errors: []result.Error{
+				{
+					Message: "Unable to generate session for user.",
+					Code:    -1,
+				},
+			},
+		}, nil
+	}
+
+	return &result.LoginResult{
+		Success: true,
+		Errors:  []result.Error{},
+		Token:   sess.Token,
+	}, nil
 }
 
-// func (c LoginController) Login(
-// 	ctx context.Context,
-// 	usernameOrEmail string,
-// 	password string,
-// ) result.LoginResult {
-// 	user, err := c.Prisma.Client.User.FindUnique(db.User.Username.Equals(usernameOrEmail)).Exec(ctx)
-// 	if err != nil {
-// 		if errors.Is(err, db.ErrNotFound) {
-// 			user, err = c.Prisma.Client.User.FindUnique(db.User.Email.Equals(usernameOrEmail)).Exec(ctx)
-// 			if err != nil {
-// 				if errors.Is(err, db.ErrNotFound) {
-// 					return result.LoginResult{
-// 						Success: false,
-// 						Errors: []result.Error{
-// 							{
-// 								Message: fmt.Sprintf("Username or email %s doesn't exist.", usernameOrEmail),
-// 								Code:    -1,
-// 							},
-// 						},
+func (r *Resolver) Logout(ctx context.Context) (bool, error) {
+	id := ""
+	uid := ctx.Value("user_id")
+	if uid != nil {
+		id = uid.(string)
+	}
 
-// 						Token: "",
-// 					}
-// 				}
+	if id == "" {
+		return false, errors.New("missing session or bearer token")
+	}
 
-// 				return result.LoginResult{
-// 					Success: false,
-// 					Errors: []result.Error{
-// 						{
-// 							Message: fmt.Sprintf("Unable to retrieve user: %v", err),
-// 							Code:    -1,
-// 						},
-// 					},
-
-// 					Token: "",
-// 				}
-// 			}
-// 		} else {
-// 			return result.LoginResult{
-// 				Success: false,
-// 				Errors: []result.Error{
-// 					{
-// 						Message: fmt.Sprintf("Unable to retrieve user: %v", err),
-// 						Code:    -1,
-// 					},
-// 				},
-
-// 				Token: "",
-// 			}
-// 		}
-// 	}
-
-// 	match, err := util.VerifyPassword(password, user.Password)
-// 	if err != nil {
-// 		return result.LoginResult{
-// 			Success: false,
-// 			Errors: []result.Error{
-// 				{
-// 					Message: fmt.Sprintf("Unable to decode password: %v", err),
-// 					Code:    -1,
-// 				},
-// 			},
-
-// 			Token: "",
-// 		}
-// 	}
-
-// 	if !match {
-// 		code, msg := types.Get(1002)
-// 		return result.LoginResult{
-// 			Success: false,
-// 			Errors: []result.Error{
-// 				{
-// 					Message: msg,
-// 					Code:    int32(code),
-// 				},
-// 			},
-
-// 			Token: "",
-// 		}
-// 	}
-
-// 	// create session
-// 	session := sessions.Sessions.New(user.ID)
-// 	if session == nil {
-// 		return result.LoginResult{
-// 			Success: false,
-// 			Errors: []result.Error{
-// 				{
-// 					Message: "Unable to generate session for user.",
-// 					Code:    -1,
-// 				},
-// 			},
-
-// 			Token: "",
-// 		}
-// 	}
-
-// 	return result.LoginResult{
-// 		Success: true,
-// 		Errors:  make([]result.Error, 0),
-// 		Token:   session.Token,
-// 	}
-// }
-
-// func (c LoginController) Logout(uid string) bool {
-// 	session := sessions.Sessions.Get(uid)
-// 	if session == nil {
-// 		return false
-// 	}
-
-// 	sessions.Sessions.Delete(uid)
-// 	return true
-// }
+	sessions.Sessions.Delete(id)
+	return true, nil
+}

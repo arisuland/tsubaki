@@ -16,9 +16,15 @@
 
 package resolvers
 
-// Resolver is a empty struct to confine the GraphQL schema.
-type Resolver struct{}
+import "arisu.land/tsubaki/pkg"
 
-func NewResolver() *Resolver {
-	return &Resolver{}
+// Resolver is a empty struct to confine the GraphQL schema.
+type Resolver struct {
+	Container *pkg.Container
+}
+
+func NewResolver(container *pkg.Container) *Resolver {
+	return &Resolver{
+		Container: container,
+	}
 }

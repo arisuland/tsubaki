@@ -17,8 +17,9 @@
 package types
 
 import (
-	"arisu.land/tsubaki/prisma/db"
 	"time"
+
+	"arisu.land/tsubaki/prisma/db"
 )
 
 // User is a registered account, a invited account, or a created account
@@ -77,7 +78,7 @@ type SelfUser struct {
 }
 
 // FromDbModel is a function to convert the db.UserModel into a typed User.
-func FromDbModel(user *db.UserModel) User {
+func FromDbModel(user *db.UserModel) *User {
 	var name *string
 	var desc *string
 
@@ -102,7 +103,7 @@ func FromDbModel(user *db.UserModel) User {
 		}
 	}
 
-	return User{
+	return &User{
 		Description: desc,
 		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
 		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
@@ -114,44 +115,3 @@ func FromDbModel(user *db.UserModel) User {
 		ID:          user.ID,
 	}
 }
-
-// FromSelfDbModel returns a typed SelfUser.
-//func FromSelfDbModel(user *db.UserModel, session *sessions.Session) *SelfUser {
-//	var name *string
-//	var desc *string
-//
-//	description, ok := user.Description()
-//	if !ok {
-//		desc = nil
-//	} else {
-//		desc = &description
-//	}
-//
-//	n, ok := user.Name()
-//	if !ok {
-//		name = nil
-//	} else {
-//		name = &n
-//	}
-//
-//	projects := make([]Project, 0)
-//	if user.RelationsUser.Projects != nil {
-//		for _, proj := range user.RelationsUser.Projects {
-//			projects = append(projects, FromProjectModel(&proj))
-//		}
-//	}
-//
-//	return &SelfUser{
-//		SessionExpiresIn: session.ExpiresIn.Format(time.RFC3339),
-//		SessionType:      session.Type.String(),
-//		Description:      desc,
-//		UpdatedAt:        user.UpdatedAt.Format(time.RFC3339),
-//		CreatedAt:        user.CreatedAt.Format(time.RFC3339),
-//		Username:         user.Username,
-//		Disabled:         user.Disabled,
-//		Projects:         projects,
-//		Flags:            int32(user.Flags),
-//		Name:             name,
-//		ID:               user.ID,
-//	}
-//}

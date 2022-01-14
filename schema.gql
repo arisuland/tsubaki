@@ -153,14 +153,10 @@ type Mutation {
   # all access tokens + session tokens. Projects will
   # be deleted also and you cannot recover them.
   #
-  # @param includeFromDb ~ If this option is enabled, a new field called
-  # "data" will be enlisted to you. This includes the information
-  # we stored in the database (user metadata and projects).
-  #
   # @returns ~ Returns a Result object of `success=false` if the database
   # cannot delete the user or `success=true` that everything has been
   # deleted.
-  deleteUser(includeFromDb: Boolean!): DeleteUserResult!
+  deleteUser: Result!
 
   # Signs a user up into the database, with their email and password.
   #

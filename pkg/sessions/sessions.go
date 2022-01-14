@@ -29,6 +29,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var Sessions *SessionManager
+
 type errorResponse struct {
 	Message string `json:"message"`
 }
@@ -92,6 +94,10 @@ type SessionManager struct {
 }
 
 func NewSessionManager(redis *redis.Client, prisma *db.PrismaClient) SessionManager {
+	if Sessions != nil {
+		panic("tried to create new session manager while one was already constructed")
+	}
+
 	s := time.Now()
 	m := SessionManager{
 		sessions: make(map[string]*Session),
@@ -139,6 +145,7 @@ func NewSessionManager(redis *redis.Client, prisma *db.PrismaClient) SessionMana
 		logrus.Infof("Deleted expired session for uid %s", r)
 	}
 
+	Sessions = &m
 	go m.resetExpired()
 	return m
 }

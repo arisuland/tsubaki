@@ -41,7 +41,7 @@ func FromProjectModel(model *db.ProjectModel) Project {
 		UpdatedAt:   model.UpdatedAt.Format(time.RFC3339),
 		CreatedAt:   model.CreatedAt.Format(time.RFC3339),
 		Subprojects: subprojects,
-		Owner:       FromDbModel(owner),
+		Owner:       *FromDbModel(owner),
 		Flags:       int32(model.Flags),
 		Name:        model.Name,
 		ID:          model.ID,

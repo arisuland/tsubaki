@@ -15,3 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package update
+
+type UpdateProjectArgs struct {
+	Description *string `json:"description"`
+	Name        *string `json:"name"`
+}

@@ -17,14 +17,18 @@
 package pkg
 
 import (
-	"arisu.land/tsubaki/internal"
-	"arisu.land/tsubaki/pkg/storage"
-	"arisu.land/tsubaki/prisma/db"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"sync"
+	"time"
+
+	"arisu.land/tsubaki/internal"
+	"arisu.land/tsubaki/pkg/storage"
+	"arisu.land/tsubaki/prisma/db"
 	"github.com/bwmarrin/snowflake"
 	es "github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
@@ -32,9 +36,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/segmentio/kafka-go"
 	"github.com/sirupsen/logrus"
-	"os"
-	"sync"
-	"time"
 )
 
 // GlobalContainer represents the global Container instance

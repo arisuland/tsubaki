@@ -17,8 +17,9 @@
 package types
 
 import (
-	"arisu.land/tsubaki/prisma/db"
 	"time"
+
+	"arisu.land/tsubaki/prisma/db"
 )
 
 // Scope is a Access Token scope.
@@ -98,26 +99,22 @@ func FromAccessTokenDbModel(model *db.AccessTokenModel) AccessToken {
 		switch scope {
 		case db.AccessTokenScopeREPOCREATE:
 			scopes = append(scopes, REPO_CREATE)
-			break
 
 		case db.AccessTokenScopeREPOUPDATE:
 			scopes = append(scopes, REPO_UPDATE)
-			break
 
 		case db.AccessTokenScopeREPODELETE:
 			scopes = append(scopes, REPO_DELETE)
-			break
 
 		case db.AccessTokenScopePUBLICWRITE:
 			scopes = append(scopes, PUBLIC_WRITE)
-			break
 		}
 	}
 
 	return AccessToken{
 		ExpiresIn: expiresIn,
 		Scopes:    scopes,
-		Owner:     FromDbModel(owner),
+		Owner:     *FromDbModel(owner),
 		Token:     model.Token,
 		ID:        model.ID,
 	}

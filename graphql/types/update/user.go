@@ -14,21 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package result
+package update
 
-import "arisu.land/tsubaki/graphql/types"
-
-// QueryResult is a Result object for the `query` function.
-// This has a `projects` and `users` field.
-type QueryResult struct {
-	// Success represents if the result of this action
-	// was successful or not.
-	Success bool `json:"success"`
-
-	// Errors represents a list of Error objects
-	// if `success=false`.
-	Errors []Error `json:"errors"`
-
-	Projects []types.Project `json:"projects"`
-	Users    []types.User    `json:"users"`
+type UpdateUserArgs struct {
+	Description *string `json:"description"`
+	Username    *string `json:"username"`
+	Name        *string `json:"name"`
 }

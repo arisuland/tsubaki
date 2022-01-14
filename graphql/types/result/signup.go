@@ -20,8 +20,14 @@ import "arisu.land/tsubaki/graphql/types"
 
 // LoginResult is a Result object but with a `user` property.
 type SignupResult struct {
-	Result
+	// Success represents if the result of this action
+	// was successful or not.
+	Success bool `json:"success"`
+
+	// Errors represents a list of Error objects
+	// if `success=false`.
+	Errors []Error `json:"errors"`
 
 	// User is the underlying user.
-	User []types.User `json:"token"`
+	User *types.User `json:"token"`
 }
