@@ -1,5 +1,25 @@
 name: golangci
 on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'bug/gh-**'
+      - 'issue/gh-**'
+      - staging
+      - master
+        
+    paths-ignore:
+      - '.github/**'
+      - '.vscode/**'
+      - 'assets/**'
+      - 'docker/**'
+      - '.idea/**'
+      - '.dockerignore'
+      - '.gitignore'
+      - '**.md'
+      - 'LICENSE'
+      - 'renovate.json'
+
   pull_request:
     branches:
       - 'feature/**'
