@@ -79,9 +79,3 @@ jobs:
            git add .
            git commit -m "chore: run \`go fmt\`"
            git push -u origin master
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-          args: --issues-exit-code=1
-          only-new-issues: false
