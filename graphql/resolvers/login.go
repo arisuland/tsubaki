@@ -22,7 +22,9 @@ func (r *Resolver) Login(
 	ctx context.Context,
 	usernameOrEmail string,
 	password string,
-)
+) error {
+	return nil
+}
 
 // func (c LoginController) Login(
 // 	ctx context.Context,
