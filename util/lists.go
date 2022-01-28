@@ -44,3 +44,15 @@ func FindIndex(haystack interface{}, needleIter FindIndexIteratee) int {
 
 	return -1
 }
+
+// TODO: use go generics for this function
+
+func Contains(haystack []string, item string) bool {
+	for _, v := range haystack {
+		if v == item {
+			return true
+		}
+	}
+
+	return false
+}

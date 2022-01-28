@@ -19,14 +19,41 @@ package main
 import (
 	"arisu.land/tsubaki/cmd/tsubaki"
 	"arisu.land/tsubaki/internal"
+	"arisu.land/tsubaki/util"
+	logustash "github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/sirupsen/logrus"
+	"net"
 	"os"
+	"strings"
 )
 
 func init() {
 	formatter := internal.NewFormatter()
 	logrus.SetFormatter(formatter)
 	logrus.SetReportCaller(true)
+
+	// Since logrus is usually initialized here, we can only add Logstash
+	// support using the `TSUBAKI_LOGGING_APPENDERS` environment variable.
+	//
+	// We don't prelude the configuration before executing the command because
+	// it's pretty redundant.
+	if appenders, ok := os.LookupEnv("TSUBAKI_LOGGING_APPENDERS"); ok {
+		actual := strings.Split(appenders, ",")
+		if util.Contains(actual, "logstash") {
+			if uri, ok := os.LookupEnv("TSUBAKI_LOGGING_LOGSTASH_URI"); ok {
+				conn, err := net.Dial("tcp", uri)
+				if err != nil {
+					panic(err)
+				}
+
+				hook := logustash.New(conn, logustash.DefaultFormatter(logrus.Fields{
+					"server": "tsubaki",
+				}))
+
+				logrus.AddHook(hook)
+			}
+		}
+	}
 }
 
 func main() {
