@@ -30,15 +30,15 @@ import (
 	"strings"
 )
 
-// environment is a type to determine the current Tsubaki environment.
-type environment string
+// Environment is a type to determine the current Tsubaki environment.
+type Environment string
 
 var (
-	Development environment = "development"
-	Production  environment = "production"
+	Development Environment = "development"
+	Production  Environment = "production"
 )
 
-func (e environment) String() string {
+func (e Environment) String() string {
 	switch {
 	case e == Development:
 		return "development"
@@ -76,13 +76,13 @@ type Config struct {
 	// it will log debug messages and has a GraphQL playground to play around with the API.
 	//
 	// Default: "development" | Environment Variable: TSUBAKI_GO_ENV or GO_ENV
-	Environment environment `yaml:"environment"`
+	Environment Environment `yaml:"environment"`
 
 	// DSN to link up Sentry error handling with Tsubaki. This will output
 	// GraphQL, request, and database errors towards Sentry.
 	//
 	// Default: `nil` | Environment Variable: TSUBAKI_SENTRY_DSN
-	SentryDSN *string `yaml:"sentry_dsn"`
+	SentryDSN *string `yaml:"sentry_dsn,omitempty"`
 
 	// If this instance should be able to send out Telemetry events to
 	// our main instance (telemetry.arisu.land) to view what users usually do,
@@ -121,7 +121,7 @@ type Config struct {
 	// running internally, you can use `127.0.0.1` instead of the default `0.0.0.0`.
 	//
 	// Default: "0.0.0.0" | Env Variable: TSUBAKI_HOST or HOST
-	Host string `yaml:"host"`
+	Host *string `yaml:"host,omitempty"`
 
 	// Uses a different port other than 2809. If the port is taken, it will
 	// try to find an available one round-robin style and use that one that
@@ -131,7 +131,7 @@ type Config struct {
 	// Range: 80-65535 on root; 1024-65535 on non-root
 	//
 	// Default: 28093 | Env Variable: TSUBAKI_PORT or PORT
-	Port int `yaml:"port"`
+	Port *int `yaml:"port,omitempty"`
 
 	// Returns the configuration for using the filesystem, S3,
 	// or Google Cloud Storage to backup your projects.
@@ -147,7 +147,7 @@ type Config struct {
 	// This is required if you're running the GitHub bot.
 	//
 	// Default: nil | Prefix: TSUBAKI_KAFKA
-	Kafka *KafkaConfig `yaml:"kafka"`
+	Kafka *KafkaConfig `yaml:"kafka,omitempty"`
 
 	// Returns the configuration for using Redis to cache user sessions.
 	// Sentinel and Standalone are supported.
@@ -164,7 +164,7 @@ type Config struct {
 	// engine for the `search` GraphQL query.
 	//
 	// Default: nil | Prefix: TSUBAKI_ELASTIC_*
-	ElasticSearch *ElasticsearchConfig `yaml:"elasticsearch"`
+	ElasticSearch *ElasticsearchConfig `yaml:"elasticsearch,omitempty"`
 }
 
 // KafkaConfig is the configuration options for configuring the Kafka Producer.
@@ -202,18 +202,18 @@ type RedisConfig struct {
 	// using an environment variable to set this, split it with `,` so it can be registered properly!
 	//
 	// Default: nil | Variable: TSUBAKI_REDIS_SENTINEL_SERVERS
-	Sentinels []string `yaml:"sentinels"`
+	Sentinels *[]string `yaml:"sentinels,omitempty"`
 
 	// If `requirepass` is set on your Redis server config, this property will authenticate
 	// Tsubaki once the connection is being dealt with.
 	//
 	// Default: nil | Variable: TSUBAKI_REDIS_PASSWORD
-	Password *string `yaml:"password"`
+	Password *string `yaml:"password,omitempty"`
 
 	// Returns the master name for connecting to any Redis sentinel servers.
 	//
 	// Default: nil | Variable: TSUBAKI_REDIS_SENTINEL_MASTER
-	MasterName *string `yaml:"master"`
+	MasterName *string `yaml:"master,omitempty"`
 
 	// Returns the database index to use so you don't clutter your server
 	// with Tsubaki-set configs.
@@ -242,11 +242,11 @@ type StorageConfig struct {
 	// must create a volume so Arisu can interact with it.
 	//
 	// Aliases: `fs` | Prefix: TSUBAKI_STORAGE_FS_*
-	Filesystem *storage.FilesystemStorageConfig `yaml:"fs"`
+	Filesystem *storage.FilesystemStorageConfig `yaml:"fs,omitempty"`
 
 	// Configures using Amazon S3 to host your projects.
 	// This is a recommended option to store your projects. :3
-	S3 *storage.S3StorageConfig `yaml:"s3"`
+	S3 *storage.S3StorageConfig `yaml:"s3,omitempty"`
 }
 
 // ElasticsearchConfig is the configuration for using Elasticsearch for
@@ -256,10 +256,10 @@ type StorageConfig struct {
 // return a error.
 type ElasticsearchConfig struct {
 	// Password is the password to use to authenticate.
-	Password *string `yaml:"password"`
+	Password *string `yaml:"password,omitempty"`
 
 	// Username is the username if you have authentication enabled.
-	Username *string `yaml:"username"`
+	Username *string `yaml:"username,omitempty"`
 
 	// Hosts is the URI endpoints to match your ElasticSearch cluster.
 	Hosts []string `yaml:"hosts"`
@@ -369,8 +369,13 @@ func getRedisConfig() (*RedisConfig, error) {
 		return nil, err
 	}
 
+	var sentinels []string
+	if os.Getenv("TSUBAKI_REDIS_SENTINEL_SERVERS") != "" {
+		sentinels = strings.Split(os.Getenv("TSUBAKI_REDIS_SENTINEL_SERVERS"), ",")
+	}
+
 	return &RedisConfig{
-		Sentinels:  strings.Split(os.Getenv("TSUBAKI_REDIS_SENTINEL_SERVERS"), ","),
+		Sentinels:  &sentinels,
 		Password:   password,
 		MasterName: masterName,
 		DbIndex:    dbIndex,
@@ -658,7 +663,7 @@ func LoadFromEnv() (*Config, error) {
 		Storage:       storageConfig,
 		Kafka:         kafkaConfig,
 		Redis:         *redisConfig,
-		Port:          port,
-		Host:          host,
+		Port:          &port,
+		Host:          &host,
 	}, nil
 }

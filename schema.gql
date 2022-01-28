@@ -40,7 +40,7 @@ type Query {
   # @returns ~ A list of Project ACLs. This is stored
   # in the project's directory, you can call from
   # the storage API.
-  projectAcls(idOrName: String!): [ProjectACL!]!
+  # projectAcls(idOrName: String!): [ProjectACL!]!
 
   # Search a project or user with this query. This powers
   # the search bar you can see on Fubuki. Since users
@@ -52,7 +52,7 @@ type Query {
   # @param options ~ The options for querying user or project metadata.
   # @returns ~ The result from ElasticSearch or a error object
   # that the search engine is not available.
-  search(query: String!, options: QueryOptions): QueryResult!
+  search(query: String!): QueryResult!
 
   # Retrieves a list of [Project]s by its pagination options.
   #
@@ -352,6 +352,12 @@ type Result {
   errors:  [Error!]!
 }
 
+# Represents a error that might have occurred during a [Result] action.
+type Error {
+  # The message of the corresponding error.
+  message: String!
+}
+
 # This is a type that extends `Result`, but not really.
 # Since GraphQL doesn't have inheritance, this is
 # just copied from `Result`.
@@ -491,4 +497,13 @@ input PaginationOptions {
   # Skipping elements by the integer provided and collecting
   # elements with the same, fixed integer. This by default returns `0`,
   skip: Int
+}
+
+# Any extra signup metadata (i.e, name, avatar URI, etc)
+input ExtraSignupMetadata {
+  # A short, concise description about this user.
+  description: String
+
+  # The user's display name to show on the site
+  name: String
 }

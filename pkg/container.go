@@ -101,7 +101,7 @@ func NewContainer(path string) error {
 	}
 
 	var re *redis.Client
-	if len(config.Redis.Sentinels) > 0 {
+	if config.Redis.Sentinels != nil && len(*config.Redis.Sentinels) > 0 {
 		masterName := ""
 		if config.Redis.MasterName == nil {
 			return errors.New("config option 'redis.master_name' needs to be defined to use a sentinel connection")
@@ -110,7 +110,7 @@ func NewContainer(path string) error {
 		}
 
 		re = redis.NewFailoverClient(&redis.FailoverOptions{
-			SentinelAddrs: config.Redis.Sentinels,
+			SentinelAddrs: *config.Redis.Sentinels,
 			MasterName:    masterName,
 			Password:      password,
 			DB:            config.Redis.DbIndex,
@@ -333,7 +333,7 @@ func indexDocuments(prisma *db.PrismaClient, client *es.Client) error {
 
 			// Setup the request payload
 			req := esapi.IndexRequest{
-				Index:      "arisu:tsubaki",
+				Index:      "arisu:tsubaki:projects",
 				DocumentID: project.ID,
 				Body:       bytes.NewReader(data),
 				Refresh:    "true",
@@ -383,7 +383,7 @@ func indexDocuments(prisma *db.PrismaClient, client *es.Client) error {
 
 			// Setup the request payload
 			req := esapi.IndexRequest{
-				Index:      "arisu:tsubaki",
+				Index:      "arisu:tsubaki:users",
 				DocumentID: user.ID,
 				Body:       bytes.NewReader(data),
 				Refresh:    "true",

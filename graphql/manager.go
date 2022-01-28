@@ -22,6 +22,7 @@ import (
 	"net/http"
 
 	"arisu.land/tsubaki/graphql/resolvers"
+	"arisu.land/tsubaki/pkg"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/sirupsen/logrus"
 )
@@ -47,7 +48,7 @@ func NewGraphQLManager() (*Manager, error) {
 	}
 
 	opts := []graphql.SchemaOpt{graphql.UseFieldResolvers()}
-	schema := graphql.MustParseSchema(string(contents), resolvers.NewResolver(), opts...)
+	schema := graphql.MustParseSchema(string(contents), resolvers.NewResolver(pkg.GlobalContainer), opts...)
 
 	logrus.Info("Successfully built schema.")
 	return &Manager{

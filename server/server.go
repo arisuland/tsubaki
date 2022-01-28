@@ -78,7 +78,17 @@ func Start(path string) error {
 	// router.Mount("/graphql", routes.NewGraphQLRouter(pkg.GlobalContainer, gql))
 	router.Mount("/integrations", integrations.NewIntegrationsRouter())
 
-	addr := fmt.Sprintf("%s:%d", pkg.GlobalContainer.Config.Host, pkg.GlobalContainer.Config.Port)
+	port := 28093
+	if pkg.GlobalContainer.Config.Port != nil {
+		port = *pkg.GlobalContainer.Config.Port
+	}
+
+	h := ""
+	if pkg.GlobalContainer.Config.Host != nil {
+		h = *pkg.GlobalContainer.Config.Host
+	}
+
+	addr := fmt.Sprintf("%s:%d", h, port)
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      router,

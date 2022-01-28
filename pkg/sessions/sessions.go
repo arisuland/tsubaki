@@ -231,7 +231,7 @@ func (m SessionManager) New(uid string) *Session {
 
 	u := types.FromDbModel(user)
 
-	sess := NewSession(u, token)
+	sess := NewSession(*u, token)
 	m.cache(uid, sess)
 	m.sessions[uid] = sess
 
