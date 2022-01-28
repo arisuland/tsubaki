@@ -2,7 +2,7 @@ run:
   tests: false
   skip-dirs:
     # Ignore Prisma generated artifacts.
-    - prisma/gen
+    - prisma/db
 
 output:
   format: colored-line-number
