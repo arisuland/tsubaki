@@ -58,5 +58,12 @@ jobs:
       - name: Build project to see if it compiles
         run: make build
 
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          args: --issues-exit-code=1
+          only-new-issues: false
+          skip-go-installation: true
+
       - name: Format project for any formatting to apply
         run: make fmt
