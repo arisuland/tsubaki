@@ -50,9 +50,19 @@ jobs:
         run: |
           echo "DATABASE_URL=postgresql://arisu:owowhatsthis@localhost:5432/tsubaki?schema=arisu" >> ~/.env
           make db.generate
-          
+
       - name: Install dependencies
         run: go mod download && go get
+
+      - name: Cache Go modules
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-${{ matrix.go-version }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.go-version }}-go-
 
       - name: Build project to see if it compiles
         run: make build
@@ -66,6 +76,8 @@ jobs:
           args: --issues-exit-code=1
           only-new-issues: false
           skip-go-installation: true
+          skip-pkg-cache: true
+          skip-build-cache: true
          
       - name: Check if git status is dirty
         id: git_status
