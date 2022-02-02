@@ -68,6 +68,13 @@ func NewContainer(path string) error {
 		return err
 	}
 
+	// we might have panic'd here with the config,
+	// so let's check!
+	if err := recover(); err != nil {
+		logrus.Errorf("received panic on configuration: %v", err)
+		os.Exit(1)
+	}
+
 	// Register Prometheus objects
 	internal.RegisterMetrics()
 

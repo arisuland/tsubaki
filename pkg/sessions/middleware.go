@@ -37,6 +37,14 @@ func (m SessionManager) Middleware(next http.Handler) http.Handler {
 
 		auth := req.Header.Get("Authorization")
 
+		// If we have "Basic," we can skip this (since some routes can
+		// have this if `config.username` and `config.password` are
+		// enabled)
+		if strings.HasPrefix(auth, "Basic") {
+			next.ServeHTTP(w, req)
+			return
+		}
+
 		// access token! Let's check if it is valid!
 		if strings.HasPrefix(auth, "Bearer") {
 			// Coming soon!

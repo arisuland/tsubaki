@@ -17,6 +17,8 @@
 package routes
 
 import (
+	"arisu.land/tsubaki/pkg"
+	"arisu.land/tsubaki/server/middleware"
 	"arisu.land/tsubaki/util"
 	"github.com/go-chi/chi/v5"
 	"net/http"
@@ -27,8 +29,9 @@ type mainResponse struct {
 	DocsURI string `json:"docs_url"`
 }
 
-func NewMainRouter() chi.Router {
+func NewMainRouter(container *pkg.Container) chi.Router {
 	router := chi.NewRouter()
+	router.Use(middleware.BasicAuth(container.Config))
 	router.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		util.WriteJson(w, 200, mainResponse{
 			Message: "hello world!",

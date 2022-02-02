@@ -18,6 +18,8 @@ package routes
 
 import (
 	"arisu.land/tsubaki/internal"
+	"arisu.land/tsubaki/pkg"
+	"arisu.land/tsubaki/server/middleware"
 	"arisu.land/tsubaki/util"
 	"github.com/go-chi/chi/v5"
 	"net/http"
@@ -29,8 +31,9 @@ type versionResponse struct {
 	Version   string `json:"version"`
 }
 
-func NewVersionRouter() chi.Router {
+func NewVersionRouter(container *pkg.Container) chi.Router {
 	router := chi.NewRouter()
+	router.Use(middleware.BasicAuth(container.Config))
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		util.WriteJson(w, 200, versionResponse{
 			CommitSHA: internal.CommitSHA,

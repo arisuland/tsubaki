@@ -19,6 +19,7 @@ package middleware
 import (
 	"arisu.land/tsubaki/pkg"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/getsentry/sentry-go"
 	"github.com/go-chi/chi/v5/middleware"
@@ -26,6 +27,10 @@ import (
 	"net/http"
 	"time"
 )
+
+type response struct {
+	Message string `json:"message"`
+}
 
 func ErrorReporter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -41,7 +46,11 @@ func ErrorReporter(next http.Handler) http.Handler {
 					logrus.Errorf("Received panic on route '%s %s':", req.Method, req.URL.Path)
 					middleware.PrintPrettyStack(err)
 
+					w.Header().Set("Content-Type", "application/json; charset=utf-8")
 					w.WriteHeader(http.StatusInternalServerError)
+					_ = json.NewEncoder(w).Encode(&response{
+						Message: "Unable to process the request at the moment. :(",
+					})
 				}
 			}()
 

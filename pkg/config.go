@@ -20,12 +20,15 @@ import (
 	"arisu.land/tsubaki/pkg/storage"
 	"arisu.land/tsubaki/util"
 	"errors"
+	"fmt"
 	"github.com/getsentry/sentry-go"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
+	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -52,6 +55,7 @@ func (e Environment) String() string {
 }
 
 var (
+	// NotIntError is a error if the a non-integer was provided.
 	NotIntError = errors.New("provided value was not a valid integer")
 
 	// MissingEnvironmentError is a error if the `environment` config option is not
@@ -116,6 +120,14 @@ type Config struct {
 	//
 	// Default: false | Environment Variable: TSUBAKI_INVITE_ONLY
 	InviteOnly bool `yaml:"invite_only"`
+
+	// Sets the current username to use for non-JWT requests, example
+	// would be a request to `127.0.0.1/` since that is non-authenticated.
+	Username *string `yaml:"username"`
+
+	// Sets the current password to use for non-JWT request, example
+	// would be a request to `127.0.0.1/` since that is non-authenticated.
+	Password *string `yaml:"password"`
 
 	// Uses a host URI when launching the HTTP server. If you wish to keep Tsubaki
 	// running internally, you can use `127.0.0.1` instead of the default `0.0.0.0`.
@@ -266,24 +278,26 @@ type ElasticsearchConfig struct {
 }
 
 func NewConfig(path string) (*Config, error) {
-	if cfg, err := loadConfig(path); err != nil {
-		return nil, err
-	} else {
-		return cfg, err
-	}
+	logrus.Debugf("Now loading configuration in path %s...", path)
+	return loadConfigFromPath(path)
 }
 
 func TestConfigFromPath(path string) error {
-	if err := testConfig(path); err != nil {
-		return err
-	} else {
-		return nil
-	}
+	return testConfig(path)
 }
 
-func checkIfMissing(key string, value bool) bool {
+//////////////////////////////////////////////////////////
+///////////////// UTILITY FUNCTIONS :D //////////////////
+////////////////////////////////////////////////////////
+
+// checkIfVariableExists returns a bool if `value` is false, checks from the
+// system environment variables and see if it exists. Otherwise, if `value` is true,
+// then it returns false (since this actually "exists" but h)
+func checkIfVariableExists(key string, value bool) bool {
+	// If we can't find it in the config.toml file, maybe it is
+	// an environment variable?
 	if !value {
-		if os.Getenv("TSUBAKI_"+key) != "" {
+		if _, ok := os.LookupEnv("TSUBAKI_" + key); !ok {
 			return false
 		}
 
@@ -293,167 +307,261 @@ func checkIfMissing(key string, value bool) bool {
 	return false
 }
 
-// convertToBool basically converts the envString provided into a boolean.
-func convertToBool(envString string, fallback bool) bool {
-	var value bool
-	if envString == "" {
-		value = fallback
+// convertToBool converts a "booleanish" [value] string into the actual raw
+// value it should be.
+//
+// Notes:
+//   - It panic's if the [value] was not the following regex:
+//        - /(yes|true)$/
+//        - /(no|false)$/
+func convertToBool(value string, fallback bool) bool {
+	if value == "" {
+		return fallback
 	} else {
-		if envString == "yes" || envString == "true" {
-			value = true
+		regex := regexp.MustCompile("(yes|true)$")
+		if regex.MatchString(value) {
+			return true
 		}
 
-		if envString == "no" || envString == "false" {
-			value = false
+		noRegex := regexp.MustCompile("(no|false)$")
+		if noRegex.MatchString(value) {
+			return false
 		}
+
+		panic(fmt.Errorf("value %s was not `yes`, `no, `true`, or `false` :(", value))
 	}
-
-	return value
 }
 
-func convertToInt(envString string, fallback int) (int, error) {
-	if envString == "" {
+// convertToInt converts the "integer" [value] to an actual int.
+func convertToInt(value string, fallback int) (int, error) {
+	if value == "" {
 		return fallback, nil
 	} else {
-		value, err := strconv.Atoi(envString)
+		v, err := strconv.Atoi(value)
 		if err != nil {
 			return fallback, NotIntError
 		}
 
-		return value, nil
+		return v, nil
 	}
 }
 
-func fallbackEnvString(envString string, fallback string) string {
-	if envString == "" {
+// fallbackToString check if [value] is empty, falls back to the [fallback] parameter.
+func fallbackToString(value string, fallback string) string {
+	if value == "" {
 		return fallback
 	} else {
-		return envString
+		return value
 	}
 }
 
-func getKafkaConfig() *KafkaConfig {
-	// Check if keys exist
-	enabled := os.Getenv("TSUBAKI_KAFKA_BROKERS") == "" || os.Getenv("TSUBAKI_KAFKA_TOPIC") == ""
-	if !enabled {
+func getKafkaConfigFromEnv() *KafkaConfig {
+	logrus.Debug("Finding Kafka configuration from system environment variables...")
+	disabled := os.Getenv("TSUBAKI_KAFKA_BROKERS") == ""
+	if disabled {
+		logrus.Debug("Kafka producer will not be initialized due to `TSUBAKI_KAFKA_BROKERS` not existing.")
 		return nil
 	}
 
+	logrus.Debug("Found Kafka configuration from system environment variables!")
 	return &KafkaConfig{
 		AutoCreateTopics: convertToBool(os.Getenv("TSUBAKI_KAFKA_AUTO_CREATE_TOPICS"), true),
 		Brokers:          strings.Split(os.Getenv("TSUBAKI_KAFKA_BROKERS"), ","),
-		Topic:            fallbackEnvString(os.Getenv("TSUBAKI_KAFKA_TOPIC"), "arisu:tsubaki"),
+		Topic:            fallbackToString(os.Getenv("TSUBAKI_KAFKA_TOPIC"), "tsubaki"),
 	}
 }
 
-func getRedisConfig() (*RedisConfig, error) {
+func getRedisConfigFromEnv() (*RedisConfig, error) {
+	logrus.Debug("Now finding Redis configuration from environment variables...")
 	var password *string
-	if os.Getenv("TSUBAKI_REDIS_PASSWORD") != "" {
-		p := os.Getenv("TSUBAKI_REDIS_PASSWORD")
-		password = &p
+	if value, ok := os.LookupEnv("TSUBAKI_REDIS_PASSWORD"); ok {
+		password = &value
 	}
 
-	var masterName *string
-	if os.Getenv("TSUBAKI_REDIS_SENTINEL_MASTER") != "" {
-		m := os.Getenv("TSUBAKI_REDIS_SENTINEL_MASTER")
-		masterName = &m
+	// Check if we have a sentinel connection
+	// If we need to connect with Redis Sentinel, then
+	// `TSUBAKI_REDIS_SENTINEL_SERVERS` and `TSUBAKI_REDIS_SENTINEL_MASTER` to exist.
+	if servers, ok := os.LookupEnv("TSUBAKI_REDIS_SENTINEL_SERVERS"); ok {
+		logrus.Debug("Found `TSUBAKI_REDIS_SENTINEL_SERVERS` environment variable!")
+		if master, ok := os.LookupEnv("TSUBAKI_REDIS_SENTINEL_MASTER"); ok {
+			logrus.Debug("We can now create a Sentinel connection since both `TSUBAKI_REDIS_SENTINEL_SERVERS` and `TSUBAKI_REDIS_SENTINEL_MASTER` exist!")
+			serverList := strings.Split(servers, ",")
+
+			index, err := convertToInt(os.Getenv("TSUBAKI_REDIS_DB_INDEX"), 8)
+			if err != nil {
+				return nil, err
+			}
+
+			return &RedisConfig{
+				Sentinels:  &serverList,
+				MasterName: &master,
+				DbIndex:    index,
+
+				// we can use these as defaults since
+				// the sentinel connection won't use them.
+				Host: "localhost",
+				Port: 6379,
+			}, nil
+		}
 	}
 
-	dbIndex, err := convertToInt(os.Getenv("TSUBAKI_REDIS_DATABASE_INDEX"), 5)
+	logrus.Debug("Determined that we are using a Redis Standalone connection!")
+
+	index, err := convertToInt(os.Getenv("TSUBAKI_REDIS_DB_INDEX"), 8)
 	if err != nil {
 		return nil, err
 	}
 
-	redisPort, err := convertToInt(os.Getenv("TSUBAKI_REDIS_PORT"), 6379)
+	redisPort, err := convertToInt(os.Getenv("TSUBAKI_REDIS_DB_INDEX"), 6379)
 	if err != nil {
 		return nil, err
-	}
-
-	var sentinels []string
-	if os.Getenv("TSUBAKI_REDIS_SENTINEL_SERVERS") != "" {
-		sentinels = strings.Split(os.Getenv("TSUBAKI_REDIS_SENTINEL_SERVERS"), ",")
 	}
 
 	return &RedisConfig{
-		Sentinels:  &sentinels,
+		Sentinels:  nil,
 		Password:   password,
-		MasterName: masterName,
-		DbIndex:    dbIndex,
-		Host:       fallbackEnvString(os.Getenv("TSUBAKI_REDIS_HOST"), "localhost"),
+		MasterName: nil,
+		DbIndex:    index,
+		Host:       fallbackToString(os.Getenv("TSUBAKI_REDIS_HOST"), "localhost"),
 		Port:       redisPort,
 	}, nil
 }
 
-func getStorageConfig() (StorageConfig, error) {
-	// Check if the directory env variable exists
-	if os.Getenv("TSUBAKI_STORAGE_FS_DIRECTORY") != "" {
+func getStorageConfigFromEnv() (StorageConfig, error) {
+	if provider, ok := os.LookupEnv("TSUBAKI_STORAGE_PROVIDER"); ok {
+		logrus.Debugf("storage: We found a provider with %s!", provider)
+		switch provider {
+		case "filesystem":
+		case "fs":
+			{
+				logrus.Debug("storage: using filesystem configuration...")
+				logrus.Warn("It is not recommended to use this under production, we recommend using the S3 storage provider to have a backup -- https://docs.arisu.land/self-hosting/warnings")
+
+				if actualPath, ok := os.LookupEnv("TSUBAKI_STORAGE_FILESYSTEM_DIRECTORY"); ok {
+					logrus.Debugf("Found path %s to use to init provider.", actualPath)
+					return StorageConfig{
+						Filesystem: &storage.FilesystemStorageConfig{
+							Directory: actualPath,
+						},
+					}, nil
+				}
+
+				path := ""
+				if runtime.GOOS == "linux" {
+					path = "/etc/arisu/tsubaki/storage"
+				} else if runtime.GOOS == "windows" {
+					appdata := os.Getenv("APPDATA")
+					path = appdata + "\\Tsubaki\\Storage"
+				} else {
+					// TODO: macos - try to figure out what to use
+					panic(fmt.Errorf("unsupported runtime: %s", runtime.GOOS))
+				}
+
+				logrus.Warn("It is recommended to set your own path if using the filesystem configuration with `TSUBAKI_STORAGE_FILESYSTEM_DIRECTORY` environment variable with a valid path, so you don't run into permission errors!")
+				return StorageConfig{
+					Filesystem: &storage.FilesystemStorageConfig{
+						Directory: path,
+					},
+				}, nil
+			}
+
+		case "s3":
+			{
+				logrus.Debug("storage: using s3 storage configuration...")
+
+				secretKey := fallbackToString(os.Getenv("TSUBAKI_STORAGE_S3_SECRET_KEY"), "")
+				accessKey := fallbackToString(os.Getenv("TSUBAKI_STORAGE_S3_ACCESS_KEY"), "")
+				endpoint := fallbackToString(os.Getenv("TSUBAKI_STORAGE_S3_ENDPOINT"), "")
+
+				if secretKey == "" || accessKey == "" {
+					panic(fmt.Errorf("missing secret and access keys for s3 authentication"))
+				}
+
+				provider := storage.FromProvider(fallbackToString(os.Getenv("TSUBAKI_STORAGE_S3_PROVIDER"), "amazon"))
+				if provider == storage.Empty {
+					panic(fmt.Errorf("unable to determine s3 provider with %s :(", fallbackToString(os.Getenv("TSUBAKI_STORAGE_S3_PROVIDER"), "amazon")))
+				}
+
+				return StorageConfig{
+					S3: &storage.S3StorageConfig{
+						SecretKey: &secretKey,
+						AccessKey: &accessKey,
+						Provider:  storage.FromProvider(fallbackToString(os.Getenv("TSUBAKI_STORAGE_S3_PROVIDER"), "amazon")),
+						Endpoint:  &endpoint,
+						Region:    fallbackToString(os.Getenv("TSUBAKI_STORAGE_S3_REGION"), "us-east1"),
+						Bucket:    fallbackToString(os.Getenv("TSUBAKI_STORAGE_S3_BUCKET"), "tsubaki"),
+					},
+				}, nil
+			}
+		}
+	} else {
+		logrus.Warnf("Missing `TSUBAKI_STORAGE_PROVIDER` system environment variable!")
+		if actualPath, ok := os.LookupEnv("TSUBAKI_STORAGE_FILESYSTEM_DIRECTORY"); ok {
+			logrus.Debugf("Found path %s to use to init provider.", actualPath)
+			return StorageConfig{
+				Filesystem: &storage.FilesystemStorageConfig{
+					Directory: actualPath,
+				},
+			}, nil
+		}
+
+		path := ""
+		if runtime.GOOS == "linux" {
+			path = "/etc/arisu/tsubaki/storage"
+		} else if runtime.GOOS == "windows" {
+			appdata := os.Getenv("APPDATA")
+			path = appdata + "\\Tsubaki\\Storage"
+		} else {
+			// TODO: macos - try to figure out what to use
+			panic(fmt.Errorf("unsupported runtime: %s", runtime.GOOS))
+		}
+
+		logrus.Warn("It is recommended to set your own path if using the filesystem configuration with `TSUBAKI_STORAGE_FILESYSTEM_DIRECTORY` environment variable with a valid path, so you don't run into permission errors!")
 		return StorageConfig{
 			Filesystem: &storage.FilesystemStorageConfig{
-				Directory: fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_FS_DIRECTORY"), "./.arisu"),
+				Directory: path,
 			},
 		}, nil
 	}
 
-	// Check if any S3 keys exist
-	// aka this is going to be messy real quick
-	if checkIfS3EnvExists() {
-		secretKey := fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_S3_SECRET_KEY"), "")
-		accessKey := fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_S3_ACCESS_KEY"), "")
-		endpoint := fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_S3_ENDPOINT"), "")
+	panic("we should never end up here")
+}
 
-		return StorageConfig{
-			S3: &storage.S3StorageConfig{
-				SecretKey: &secretKey,
-				AccessKey: &accessKey,
-				Provider:  storage.FromProvider(fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_S3_SECRET_KEY"), "")),
-				Endpoint:  &endpoint,
-				Region:    os.Getenv("TSUBAKI_STORAGE_S3_REGION"),
-				Bucket:    fallbackEnvString(os.Getenv("TSUBAKI_STORAGE_S3_BUCKET"), "tsubaki"),
-			},
-		}, nil
+func getElasticsearchConfigFromEnv() *ElasticsearchConfig {
+	logrus.Debug("Now loading Elasticsearch configuration from system environment variables...")
+
+	// Check if it is enabled
+	endpoints, enabled := os.LookupEnv("TSUBAKI_ELASTIC_ENDPOINTS")
+	if !enabled {
+		logrus.Warn("Missing Elasticsearch configuration! You will lose the `search` GraphQL query!")
+		return nil
 	}
 
-	return StorageConfig{}, errors.New("missing storage provider, read more here: https://docs.arisu.land/selfhosting/storage")
-}
+	nodes := strings.Split(endpoints, ",")
+	var password *string
+	var username *string
 
-func getElasticSearchConfig() *ElasticsearchConfig {
-	// Check if the required env variable exists
-	if os.Getenv("TSUBAKI_ELASTIC_ENDPOINTS") != "" {
-		var password *string
-		var username *string
-
-		nodes := strings.Split(os.Getenv("TSUBAKI_ELASTIC_ENDPOINTS"), ";")
-
-		if os.Getenv("TSUBAKI_ELASTIC_PASSWORD") != "" {
-			raw := os.Getenv("TSUBAKI_ELASTIC_PASSWORD")
-			password = &raw
-		}
-
-		if os.Getenv("TSUBAKI_ELASTIC_USERNAME") != "" {
-			raw := os.Getenv("TSUBAKI_ELASTIC_USERNAME")
-			username = &raw
-		}
-
-		return &ElasticsearchConfig{
-			Password: password,
-			Username: username,
-			Hosts:    nodes,
-		}
+	if value, ok := os.LookupEnv("TSUBAKI_ELASTIC_PASSWORD"); ok {
+		password = &value
 	}
 
-	logrus.Warnf("Missing ElasticSearch configuration. This is not required unless you need the `search` GraphQL query.")
-	return nil
+	if value, ok := os.LookupEnv("TSUBAKI_ELASTIC_USERNAME"); ok {
+		username = &value
+	}
+
+	return &ElasticsearchConfig{
+		Password: password,
+		Username: username,
+		Hosts:    nodes,
+	}
 }
 
-func checkIfS3EnvExists() bool {
-	prefix := "TSUBAKI_STORAGE_S3_"
-	provider := os.Getenv(prefix + "PROVIDER")
-	region := os.Getenv(prefix + "REGION")
-
-	return provider != "" && region != ""
-}
+///////////////////////////////////////////////////////////
+/////////////// ✨ LOADER FUNCTIONS :D ✨ /////////////////
+//////////////////////////////////////////////////////////
 
 func testConfig(path string) error {
+	// Check if we can read the file
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
@@ -462,64 +570,59 @@ func testConfig(path string) error {
 	var config Config
 	err = yaml.Unmarshal(contents, &config)
 	if err != nil {
-		return nil
+		return err
 	}
 
-	if checkIfMissing("GO_ENV", config.Environment != "") {
+	if checkIfVariableExists("GO_ENV", config.Environment != "") {
 		return MissingEnvironmentError
 	}
 
-	validEnvs := []string{"development", "production"}
-	var valid = false
-
-	for _, key := range validEnvs {
+	valid := []string{"development", "production"}
+	isValid := false
+	for _, key := range valid {
 		if key == config.Environment.String() {
-			valid = true
+			isValid = true
 		}
 	}
 
-	if !valid {
+	if !isValid {
 		return InvalidEnvironmentError
 	}
 
 	return nil
 }
 
-func loadConfig(path string) (*Config, error) {
-	logrus.Debug("Loading configuration...")
+func loadConfigFromPath(path string) (*Config, error) {
 	if path != "" {
 		// Check if it is in the root directory
-		_, err := os.Stat("./config.yml")
-		if !os.IsNotExist(err) {
-			logrus.Debug("Found configuration in root, loading from that...")
+		if _, err := os.Stat("./config.yml"); !os.IsNotExist(err) {
+			logrus.Debugf("We will not use config in path '%s' since we found a config.yml file in the root directory.", path)
 			path = "./config.yml"
 		} else {
-			logrus.Warn("Unable to find configuration in root directory or with `-c` flag. Loading from environment variables...")
+			logrus.Warnf("Unable to find the configuration path in %s (if it was loaded with `-c` or not), opting to use environment variables...", path)
 			c, err := LoadFromEnv()
 			if err != nil {
 				return nil, err
 			}
 
-			// Check if it is still empty
+			// Check if we can find the secret key base
 			if c.SecretKeyBase == "" {
 				hash := util.GenerateHash(32)
 				if hash == "" {
-					return nil, errors.New("unable to generate hash")
+					panic("we should never be here (location=generating hash)")
 				}
 
+				c.SecretKeyBase = hash
 				logrus.Warnf(
-					"it is recommended to store this generated key for JWT authentication. After a restart, all JWTs will fail: %s",
+					"I was unable to find the `TSUBAKI_SECRET_KEY_BASE` environment variable, so I created it myself: %s",
 					hash,
 				)
 
-				c.SecretKeyBase = hash
+				return c, nil
 			}
-
-			return c, nil
 		}
 	}
 
-	logrus.Debugf("Found configuration in path %s! Now loading...", path)
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -531,26 +634,25 @@ func loadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 
-	if checkIfMissing("GO_ENV", config.Environment != "") {
+	if checkIfVariableExists("GO_ENV", config.Environment != "") {
 		return nil, MissingEnvironmentError
 	}
 
-	validEnvs := []string{"development", "production"}
-	var valid = false
-
-	for _, key := range validEnvs {
+	valid := []string{"development", "production"}
+	isValid := false
+	for _, key := range valid {
 		if key == config.Environment.String() {
-			valid = true
+			isValid = true
 		}
 	}
 
-	if !valid {
+	if !isValid {
 		return nil, InvalidEnvironmentError
 	}
 
-	// If the secret key base environment variable exists,
-	// let's set it in the config.
-	if os.Getenv("TSUBAKI_SECRET_KEY_BASE") != "" && config.SecretKeyBase == "" {
+	// Usually, some users can load this using an environment variable
+	// for security reasons, so we can load that from here!
+	if config.SecretKeyBase == "" && os.Getenv("TSUBAKI_SECRET_KEY_BASE") != "" {
 		config.SecretKeyBase = os.Getenv("TSUBAKI_SECRET_KEY_BASE")
 	}
 
@@ -573,93 +675,108 @@ func loadConfig(path string) (*Config, error) {
 }
 
 func LoadFromEnv() (*Config, error) {
-	logrus.Debug("Now loading configuration from environment variables...")
+	logrus.Debug("Now loading configuration from system environment variables...")
 
-	// Load from .env if the file exists
+	// Check if .env exists in the root directory, if it does
+	// let's load it!
 	if _, err := os.Stat("./.env"); !os.IsNotExist(err) {
-		err := godotenv.Load(".env")
+		err := godotenv.Load(".env", "./.env")
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	envDsn := os.Getenv("TSUBAKI_SENTRY_DSN")
-
-	var sentryDsn *string
-	if envDsn != "" {
-		logrus.Debugf("Now verifying DSN %s...", envDsn)
-		dsn, err := sentry.NewDsn(envDsn)
-
+	// Check if the Sentry DSN exists here
+	var actualDsn *string
+	if dsn, ok := os.LookupEnv("TSUBAKI_SENTRY_DSN"); ok {
+		logrus.Debug("Found Sentry DSN %s!", dsn)
+		d, err := sentry.NewDsn(dsn)
 		if err != nil {
 			return nil, err
 		}
 
-		uri := dsn.String()
-		sentryDsn = &uri
+		uri := d.String()
+		actualDsn = &uri
 	}
 
-	telemetry := convertToBool(os.Getenv("TSUBAKI_TELEMETRY"), false)
-	if telemetry {
-		logrus.Warn("You have enabled telemetry reports! You have been warned... :ghost:")
+	// Check if we can send telemetry events to our main servers.
+	// If this is enabled, we will send telemetry events to Noelware.
+	// By default, we do not enable it, but if you want to,
+	// then you can.
+	//
+	// Curious? You can read up in the documentation:
+	// https://docs.noelware.org/telemetry/services#arisu
+	telemetryEnabled := convertToBool(os.Getenv("TSUBAKI_TELEMETRY_ENABLED"), false)
+	if telemetryEnabled {
+		logrus.Warn("Looks like you enabled Telemetry on this Tsubaki instance (probably by accident; https://docs.noelware.org/telemetry/services#arisu)")
 	}
 
-	// this is ugly send help
-	var port int
-	var portEnv string
-	if portEnv = os.Getenv("TSUBAKI_PORT"); portEnv == "" {
-		if portEnv = os.Getenv("PORT"); portEnv == "" {
-			portEnv = "none"
+	port := 28093
+	host := "0.0.0.0"
+
+	if h, ok := os.LookupEnv("TSUBAKI_HOST"); !ok {
+		if o, k := os.LookupEnv("HOST"); k {
+			host = o
 		}
-	}
-
-	if portEnv == "none" {
-		port = 28093
 	} else {
-		portInt, err := convertToInt(portEnv, 28093)
+		host = h
+	}
+
+	if p, ok := os.LookupEnv("TSUBAKI_PORT"); !ok {
+		if o, k := os.LookupEnv("PORT"); k {
+			h, err := convertToInt(o, 28093)
+			if err != nil {
+				return nil, err
+			}
+
+			port = h
+		}
+	} else {
+		h, err := convertToInt(p, 28093)
 		if err != nil {
 			return nil, err
 		}
 
-		port = portInt
+		port = h
 	}
 
-	// this still looks ugly :sob:
-	var host string
-	var hostEnv string
-	if hostEnv = os.Getenv("TSUBAKI_HOST"); hostEnv == "" {
-		if hostEnv = os.Getenv("HOST"); hostEnv == "" {
-			host = "0.0.0.0"
-		}
-	}
-
-	if hostEnv == "none" {
-		host = "0.0.0.0"
-	} else {
-		host = fallbackEnvString(hostEnv, "0.0.0.0")
-	}
-
-	// Now we need to get Redis, Kafka, and Storage env handlers WAAAAAA
-	kafkaConfig := getKafkaConfig()
-	elasticCfg := getElasticSearchConfig()
-	redisConfig, err := getRedisConfig()
+	kafkaConfig := getKafkaConfigFromEnv()
+	elasticConfig := getElasticsearchConfigFromEnv()
+	redisConfig, err := getRedisConfigFromEnv()
 
 	if err != nil {
 		return nil, err
 	}
 
-	storageConfig, err := getStorageConfig()
+	storageConfig, err := getStorageConfigFromEnv()
 	if err != nil {
 		return nil, err
 	}
 
-	logrus.Debug("Successfully loaded configuration from environment variables!")
+	// check if we can enable basic auth
+	var password *string
+	var username *string
+
+	if user, ok := os.LookupEnv("TSUBAKI_AUTH_USERNAME"); ok {
+		if pass, k := os.LookupEnv("TSUBAKI_AUTH_PASSWORD"); k {
+			logrus.Debug("Basic authentication on non-authenticated routes is enabled!")
+			password = &pass
+			username = &user
+		} else {
+			return nil, errors.New("you are required to have `TSUBAKI_AUTH_PASSWORD` also with `TSUBAKI_AUTH_USERNAME`")
+		}
+	}
+
+	logrus.Debug("Loaded configuration from system environment variables!")
 	return &Config{
-		SecretKeyBase: os.Getenv("TSUBAKI_SECRET_KEY_HASH"),
-		ElasticSearch: elasticCfg,
-		Registrations: convertToBool(os.Getenv("TSUBAKI_REGISTRATIONS"), true),
+		SecretKeyBase: os.Getenv("TSUBAKI_SECRET_KEY_BASE"),
+		ElasticSearch: elasticConfig,
+		Registrations: convertToBool(os.Getenv("TSUBAKI_REGISTRATIONS_ENABLED"), true),
 		InviteOnly:    convertToBool(os.Getenv("TSUBAKI_INVITE_ONLY"), false),
-		Telemetry:     telemetry,
-		SentryDSN:     sentryDsn,
+		Telemetry:     telemetryEnabled,
+		SentryDSN:     actualDsn,
+		Username:      username,
+		Password:      password,
 		Storage:       storageConfig,
 		Kafka:         kafkaConfig,
 		Redis:         *redisConfig,

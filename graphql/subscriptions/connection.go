@@ -14,23 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package routes
+package subscriptions
 
 import (
-	"arisu.land/tsubaki/pkg"
-	"arisu.land/tsubaki/server/middleware"
-	"github.com/go-chi/chi/v5"
-	"net/http"
+	"github.com/gorilla/websocket"
+	"github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 )
 
-func NewPingRouter(container *pkg.Container) chi.Router {
-	router := chi.NewRouter()
-	router.Use(middleware.BasicAuth(container.Config))
-	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte("OK"))
-	})
+// Connection is the current GraphQL subscription connection available
+// in this context.
+type Connection struct {
+	conn *websocket.Conn
+	uuid string
+}
 
-	return router
+// Ack is the p
+type Ack struct {
+	OperationId string                 `json:"id,omitempty"`
+	Type        string                 `json:"type"`
+	Payload     map[string]interface{} `json:"payload,omitempty"`
+}
+
+func newConnection(conn *websocket.Conn) Connection {
+	return Connection{
+		conn: conn,
+		uuid: uuid.NewV4().String(),
+	}
+}
+
+func (c Connection) Connect() {
+	logrus.Infof("Now processing messages for connection with UUID %s.", c.uuid)
 }

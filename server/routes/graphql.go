@@ -17,6 +17,7 @@
 package routes
 
 import (
+	"arisu.land/tsubaki/server/middleware"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -30,6 +31,8 @@ import (
 
 func NewGraphQLRouter(container *pkg.Container, manager *graphql.Manager) chi.Router {
 	r := chi.NewRouter()
+
+	r.Use(middleware.BasicAuth(container.Config))
 	r.Post("/", manager.ServeHTTP)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		if container.Config.Environment == "development" {

@@ -26,18 +26,21 @@ enum AccessTokenScope {
 }
 
 model User {
-  accessTokens AccessToken[]
-  description  String?
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  username     String        @unique // username is unique
-  disabled     Boolean       @default(false)
-  projects     Project[]
-  password     String
-  flags        Int           @default(0)
-  email        String        @unique // email is unique
-  name         String?
-  id           String        @id
+  gravatarEmail String?
+  avatarUrl     String?
+  accessTokens  AccessToken[]
+  useGravatar   Boolean       @default(false)
+  description   String?
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  username      String        @unique // username is unique
+  disabled      Boolean       @default(false)
+  projects      Project[]
+  password      String
+  flags         Int           @default(0)
+  email         String        @unique // email is unique
+  name          String?
+  id            String        @id
 
   @@map("users")
 }

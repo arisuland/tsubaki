@@ -17,12 +17,15 @@
 package routes
 
 import (
+	"arisu.land/tsubaki/pkg"
+	"arisu.land/tsubaki/server/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func NewMetricsRouter() chi.Router {
+func NewMetricsRouter(container *pkg.Container) chi.Router {
 	router := chi.NewRouter()
+	router.Use(middleware.BasicAuth(container.Config))
 	router.Mount("/", promhttp.Handler())
 
 	return router
