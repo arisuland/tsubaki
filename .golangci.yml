@@ -1,8 +1,8 @@
 run:
   tests: false
-  skip-dirs:
+  skip-files:
     # Ignore Prisma generated artifacts.
-    - prisma/db
+    - ./prisma/db/*.go
 
 output:
   format: colored-line-number
