@@ -90,7 +90,7 @@ type Object struct {
 	Members map[string]Member `hcl:"members"`
 }
 
-// DecodeFromSource decodes the contents and converts it to a ACL Object.
+// DecodeFromSource decodes the contents and converts it to an ACL Object.
 func DecodeFromSource(contents string) (*Object, error) {
 	var object Object
 	err := hclsimple.Decode("permissions.hcl", []byte(contents), nil, &object)

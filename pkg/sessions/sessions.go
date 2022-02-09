@@ -22,7 +22,6 @@ import (
 	"errors"
 	"time"
 
-	"arisu.land/tsubaki/graphql/types"
 	"arisu.land/tsubaki/pkg"
 	"arisu.land/tsubaki/prisma/db"
 	"github.com/go-redis/redis/v8"
@@ -66,13 +65,13 @@ type Session struct {
 	Token string `json:"token"`
 
 	// User is the current user of this Session is attached to.
-	User types.User `json:"user"`
+	User *db.UserModel `json:"user"`
 
 	// Type represents the current sessionType.
 	Type sessionType `json:"session_type"`
 }
 
-func NewSession(user types.User, token string) *Session {
+func NewSession(user *db.UserModel, token string) *Session {
 	days := 24 * time.Hour
 	return &Session{
 		ExpiresIn: time.Now().Add(2 * days),
@@ -229,9 +228,7 @@ func (m SessionManager) New(uid string) *Session {
 		return nil
 	}
 
-	u := types.FromDbModel(user)
-
-	sess := NewSession(*u, token)
+	sess := NewSession(user, token)
 	m.cache(uid, sess)
 	m.sessions[uid] = sess
 

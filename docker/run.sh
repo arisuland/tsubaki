@@ -23,4 +23,6 @@ set -o pipefail
 . /app/arisu/tsubaki/lib/liblog.sh
 
 info "** Starting up Tsubaki! **"
+debug "  ==> Custom Configuration Path: ${TSUBAKI_CONFIG_PATH:-none}"
+
 exec "/app/arisu/tsubaki/tsubaki" $@

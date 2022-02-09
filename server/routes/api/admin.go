@@ -25,10 +25,10 @@ import (
 func newAdminRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		util.WriteJson(w, 200, struct {
+		util.WriteJson(w, 401, struct {
 			Message string `json:"message"`
 		}{
-			Message: "Welcome to the not-so secret internal API. This is not documented, beware!",
+			Message: "You're not supposed to be here, are you?",
 		})
 	})
 

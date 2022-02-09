@@ -14,4 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package resolvers
+package controllers
+
+// Controller is an object that represents a database controller.
+type Controller struct {
+	// Users is the controller API for manipulating User objects.
+	Users UserController
+}
+
+func NewDbController() Controller {
+	return Controller{
+		Users: newUserController(),
+	}
+}

@@ -45,17 +45,13 @@ func (m SessionManager) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// access token! Let's check if it is valid!
 		if strings.HasPrefix(auth, "Bearer") {
-			// Coming soon!
-			next.ServeHTTP(w, req)
-		} else if strings.HasPrefix(auth, "Session") {
-			// remove any spaces -> trim "Session" off the auth string
-			token := strings.Trim(strings.TrimPrefix(auth, "Session"), " ")
+			// remove any spaces -> trim "Bearer" off the auth string
+			token := strings.Trim(strings.TrimPrefix(auth, "Bearer"), " ")
 			decoded, err := pkg.DecodeToken(token)
 
 			if err != nil {
-				logrus.Errorf("Unable to decode session token: %v", err)
+				logrus.Errorf("Unable to decode access token: %v", err)
 				w.WriteHeader(400)
 				_ = json.NewEncoder(w).Encode(&errorResponse{
 					Message: fmt.Sprintf("Invalid token: %s", token),
@@ -70,7 +66,7 @@ func (m SessionManager) Middleware(next http.Handler) http.Handler {
 				logrus.Errorf("Unable to validate token: %v", err)
 				w.WriteHeader(400)
 				_ = json.NewEncoder(w).Encode(&errorResponse{
-					Message: fmt.Sprintf("Unable to validate token %s", token),
+					Message: "Unable to validate token!",
 				})
 
 				return
@@ -80,7 +76,7 @@ func (m SessionManager) Middleware(next http.Handler) http.Handler {
 				logrus.Errorf("Unable to validate session token")
 				w.WriteHeader(400)
 				_ = json.NewEncoder(w).Encode(&errorResponse{
-					Message: fmt.Sprintf("Unable to validate token %s", token),
+					Message: "Unable to validate token!",
 				})
 
 				return

@@ -17,28 +17,35 @@
 package api
 
 import (
+	"arisu.land/tsubaki/internal/controllers"
 	"arisu.land/tsubaki/util"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 )
 
-func NewApiRouter() chi.Router {
+func NewApiV1Router(controller controllers.Controller) chi.Router {
 	r := chi.NewRouter()
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+
+	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		util.WriteJson(w, 200, struct {
-			Message string `json:"message"`
+			Message        string `json:"message"`
+			DocsUri        string `json:"docs_url"`
+			DefaultVersion string `json:"default_version"`
+			CurrentVersion string `json:"current_version"`
 		}{
-			Message: "Welcome to the not-so secret internal API. This is not documented, beware!",
+			Message:        "hello world!",
+			DocsUri:        "https://docs.arisu.land",
+			DefaultVersion: "v1",
+			CurrentVersion: "v1",
 		})
 	})
 
-	return r
-}
-
-func NewApiV1Router() chi.Router {
-	r := chi.NewRouter()
+	r.Mount("/users", newUserApiRouter(controller))
 	r.Mount("/admin", newAdminRouter())
+	r.Mount("/login", newLoginApiRouter())
+	r.Mount("/search", newSearchApiRouter())
 	r.Mount("/storage", newStorageRouter())
+	r.Mount("/projects", newProjectsApiRouter())
 
 	return r
 }

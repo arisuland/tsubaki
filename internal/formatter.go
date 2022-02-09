@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -87,10 +88,22 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 			pkg = entry.Caller.Function
 		}
 
+		// Sometimes, for middleware, the `pkg` variable will contain
+		// .func{int}, so we need to remove that!
+		if strings.Contains(entry.Caller.Function, ".func") {
+			regex, _ := regexp.Compile("\\.(func\\d+)")
+			pkg = regex.ReplaceAllString(entry.Caller.Function, "")
+		}
+
+		// To preserve actual readability, the path that it is executing
+		// is just :gone:!
+		cwd, _ := os.Getwd()
+		file := strings.TrimPrefix(strings.Replace(entry.Caller.File, cwd, "", -1), "/")
+
 		if f.DisableColors {
 			fmt.Fprintf(b, "[%s (%s:%d)] ", pkg, entry.Caller.File, entry.Caller.Line)
 		} else {
-			fmt.Fprintf(b, "\x1b[38;2;134;134;134m[%s (%s:%d)]\x1b[0m ", pkg, entry.Caller.File, entry.Caller.Line)
+			fmt.Fprintf(b, "\x1b[38;2;134;134;134m[%s (%s:%d)]\x1b[0m ", pkg, file, entry.Caller.Line)
 		}
 	}
 

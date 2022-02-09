@@ -42,7 +42,7 @@ import (
 // that is constructed using the NewContainer function.
 var GlobalContainer *Container = nil
 
-// Container is a object that holds all the dependencies for every part
+// Container is an object that holds all the dependencies for every part
 // of Tsubaki's lifecycle.
 type Container struct {
 	ElasticSearch *es.Client
@@ -244,7 +244,7 @@ func NewContainer(path string) error {
 		_ = indexDocuments(prisma, client)
 	}
 
-	GlobalContainer = &Container{
+	container := &Container{
 		ElasticSearch: e,
 		Snowflake:     node,
 		Storage:       provider,
@@ -255,6 +255,7 @@ func NewContainer(path string) error {
 		Kafka:         writer,
 	}
 
+	GlobalContainer = container
 	return nil
 }
 
@@ -340,7 +341,7 @@ func indexDocuments(prisma *db.PrismaClient, client *es.Client) error {
 
 			// Setup the request payload
 			req := esapi.IndexRequest{
-				Index:      "arisu:tsubaki:projects",
+				Index:      "tsubaki-projects",
 				DocumentID: project.ID,
 				Body:       bytes.NewReader(data),
 				Refresh:    "true",
@@ -390,7 +391,7 @@ func indexDocuments(prisma *db.PrismaClient, client *es.Client) error {
 
 			// Setup the request payload
 			req := esapi.IndexRequest{
-				Index:      "arisu:tsubaki:users",
+				Index:      "tsubaki-users",
 				DocumentID: user.ID,
 				Body:       bytes.NewReader(data),
 				Refresh:    "true",

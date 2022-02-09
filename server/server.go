@@ -17,6 +17,8 @@
 package server
 
 import (
+	"arisu.land/tsubaki/internal/controllers"
+	"arisu.land/tsubaki/util"
 	"context"
 	"fmt"
 	"net/http"
@@ -55,27 +57,44 @@ func Start(path string) error {
 		return err
 	}
 
-	// gql, err := graphql.NewGraphQLManager()
-	// if err != nil {
-	// 	return err
-	// }
-
 	logrus.Info("Starting up HTTP server!")
 	rl := ratelimit.NewRatelimiter(pkg.GlobalContainer.Redis)
 	router := chi.NewRouter()
 	sesh := sessions.NewSessionManager(pkg.GlobalContainer.Redis, pkg.GlobalContainer.Prisma)
+	controller := controllers.NewDbController()
+
+	// Add global error handling for 404s and 405s!
+	router.NotFound(func(w http.ResponseWriter, req *http.Request) {
+		util.WriteJson(w, 404, struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+		}{
+			Success: false,
+			Message: fmt.Sprintf("Unknown route: \"%s %s\"! Are you in the right path? :blobcatscared:", req.Method, req.URL.Path),
+		})
+	})
+
+	router.MethodNotAllowed(func(w http.ResponseWriter, req *http.Request) {
+		util.WriteJson(w, 405, struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+		}{
+			Success: false,
+			Message: fmt.Sprintf("Cannot use method %s on path %s.", req.Method, req.URL.Path),
+		})
+	})
 
 	router.Use(rl.Middleware)
 	router.Use(sesh.Middleware)
+	router.Use(middleware.Headers)
 	router.Use(middleware.Logging)
 	router.Use(middleware.ErrorReporter)
 	router.Mount("/", routes.NewMainRouter(pkg.GlobalContainer))
-	router.Mount("/api", api.NewApiRouter())
+	router.Mount("/api", api.NewApiV1Router(controller))
 	router.Mount("/ping", routes.NewPingRouter(pkg.GlobalContainer))
-	router.Mount("/api/v1", api.NewApiV1Router())
+	router.Mount("/api/v1", api.NewApiV1Router(controller))
 	router.Mount("/metrics", routes.NewMetricsRouter(pkg.GlobalContainer))
 	router.Mount("/version", routes.NewVersionRouter(pkg.GlobalContainer))
-	// router.Mount("/graphql", routes.NewGraphQLRouter(pkg.GlobalContainer, gql))
 	router.Mount("/integrations", integrations.NewIntegrationsRouter())
 
 	port := 28093

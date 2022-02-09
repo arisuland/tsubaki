@@ -32,13 +32,8 @@ func Logging(next http.Handler) http.Handler {
 		ww := middleware.NewWrapResponseWriter(w, req.ProtoMajor)
 		next.ServeHTTP(ww, req)
 
-		// skip on `/graphql` requests since they can get spammy :<
-		if req.URL.Path == "/graphql" {
-			return
-		}
-
 		code := util.GetStatusCode(ww.Status())
-		logrus.Infof("[%s] %s %s (%s) => %d %s (%d bytes) [%s]",
+		logrus.Infof("[%s] %s %s (%s) => %d %s (%d bytes written | %s)",
 			ratelimit.RealIP(req),
 			req.Method,
 			req.URL.Path,

@@ -52,7 +52,7 @@ dockers:
       - --label=org.opencontainers.image.created={{ .Date }}
       - --label=org.opencontainers.image.revision={{ .FullCommit }}
       - --label=org.opencontainers.image.licenses=MIT,GPL-3.0
-    dockerfile: Dockerfile
+    dockerfile: release.Dockerfile
     use: buildx
 
   - image_templates:
@@ -76,7 +76,7 @@ dockers:
       - --label=org.opencontainers.image.created={{ .Date }}
       - --label=org.opencontainers.image.revision={{ .FullCommit }}
       - --label=org.opencontainers.image.licenses=MIT,GPL-3.0
-    dockerfile: Dockerfile
+    dockerfile: release.Dockerfile
     use: buildx
 
   - image_templates:
@@ -100,7 +100,7 @@ dockers:
       - --label=org.opencontainers.image.created={{ .Date }}
       - --label=org.opencontainers.image.revision={{ .FullCommit }}
       - --label=org.opencontainers.image.licenses=MIT,GPL-3.0
-    dockerfile: Dockerfile
+    dockerfile: release.Dockerfile
     use: buildx
   
 docker_manifests:
