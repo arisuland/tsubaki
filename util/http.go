@@ -18,6 +18,8 @@ package util
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 )
 
@@ -114,4 +116,30 @@ func WriteJson(w http.ResponseWriter, status int, data interface{}) {
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		return
 	}
+}
+
+// GetJsonBody is a simple utility function to retrieve this http.Request's
+// body as a JSON object.
+func GetJsonBody(req *http.Request) (int, map[string]interface{}, error) {
+	contentType := req.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		return http.StatusUnsupportedMediaType, nil, fmt.Errorf("content type was not application/json, received %s", contentType)
+	}
+
+	var data map[string]interface{}
+	var unmarshalErr *json.UnmarshalTypeError
+
+	decoder := json.NewDecoder(req.Body)
+	decoder.DisallowUnknownFields()
+
+	err := decoder.Decode(&data)
+	if err != nil {
+		if errors.As(err, &unmarshalErr) {
+			return 406, nil, fmt.Errorf("wrong type provided for field '%s'", unmarshalErr.Field)
+		} else {
+			return 400, nil, err
+		}
+	}
+
+	return -1, data, nil
 }

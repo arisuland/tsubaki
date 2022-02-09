@@ -64,5 +64,34 @@ func newUserApiRouter(controller controllers.Controller) chi.Router {
 	//
 	//})
 
+	r.Post("/", func(w http.ResponseWriter, req *http.Request) {
+		statusCode, data, err := util.GetJsonBody(req)
+		if err != nil {
+			util.WriteJson(w, statusCode, result.Err(statusCode, "INVALID_BODY_STRUCTURE", err.Error()))
+			return
+		}
+
+		username, ok := data["username"].(string)
+		if !ok {
+			util.WriteJson(w, 406, result.Err(406, "MISSING_USERNAME", "Missing `username` field in body or `username` was not a valid string."))
+			return
+		}
+
+		email, ok := data["email"].(string)
+		if !ok {
+			util.WriteJson(w, 406, result.Err(406, "MISSING_USERNAME", "Missing `email` field in body or `email` was not a valid string."))
+			return
+		}
+
+		password, ok := data["password"].(string)
+		if !ok {
+			util.WriteJson(w, 406, result.Err(406, "MISSING_USERNAME", "Missing `password` field in body or `password` was not a valid string."))
+			return
+		}
+
+		res := controller.Users.Create(username, password, email)
+		util.WriteJson(w, res.StatusCode, res)
+	})
+
 	return r
 }

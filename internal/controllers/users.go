@@ -20,10 +20,12 @@ import (
 	"arisu.land/tsubaki/pkg"
 	"arisu.land/tsubaki/pkg/result"
 	"arisu.land/tsubaki/prisma/db"
+	"arisu.land/tsubaki/util"
 	"context"
 	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"net/mail"
 	"time"
 )
 
@@ -112,5 +114,58 @@ func (UserController) Get(id string) *result.Result {
 }
 
 func (UserController) Create(username string, password string, email string) *result.Result {
-	return result.Ok(struct{}{})
+	// Check if this instance is invite only
+	if pkg.GlobalContainer.Config.InviteOnly {
+		return result.Err(403, "INSTANCE_INVITE_ONLY", "This instance is invite-only, ask the administrators to create you an invite!")
+	}
+
+	// Check if the username is taken
+	userByName, err := pkg.GlobalContainer.Prisma.User.FindUnique(db.User.Username.Equals(username)).Exec(context.TODO())
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		logrus.Errorf("Unable to query from PostgreSQL: %v", err)
+		return result.Err(500, "UNKNOWN_ERROR", fmt.Sprintf("Unknown error while checking if username %s was taken. :<", username))
+	}
+
+	if userByName != nil {
+		return result.Err(400, "USERNAME_ALREADY_TAKEN", fmt.Sprintf("Username %s is already taken.", username))
+	}
+
+	// Check if the email is a valid email address
+	_, err = mail.ParseAddress(email)
+	if err != nil {
+		return result.Err(406, "INVALID_EMAIL_ADDRESS", fmt.Sprintf("Email %s is not a valid email address.", email))
+	}
+
+	userByEmail, err := pkg.GlobalContainer.Prisma.User.FindUnique(db.User.Email.Equals(email)).Exec(context.TODO())
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		logrus.Errorf("Unable to query from PostgreSQL: %v", err)
+		return result.Err(500, "UNKNOWN_ERROR", fmt.Sprintf("Unknown error while checking if email %s was taken. :<", email))
+	}
+
+	if userByEmail != nil {
+		return result.Err(400, "EMAIL_ALREADY_TAKEN", fmt.Sprintf("Email %s is already taken.", email))
+	}
+
+	// Seems like we are good to go!
+	hash, err := util.GeneratePassword(password)
+	if err != nil {
+		logrus.Errorf("Unable to generate Argon2 password: %v", err)
+		return result.Err(500, "UNKNOWN_ERROR", "Unable to create user, try again later.")
+	}
+
+	// Generate a user ID
+	id := pkg.GlobalContainer.Snowflake.Generate().String()
+	user, err := pkg.GlobalContainer.Prisma.User.CreateOne(
+		db.User.Username.Set(username),
+		db.User.Password.Set(hash),
+		db.User.Email.Set(email),
+		db.User.ID.Set(id),
+		db.User.Projects.Link()).Exec(context.TODO())
+
+	if err != nil {
+		logrus.Errorf("Unable to create user in database: %v", err)
+		return result.Err(500, "UNKNOWN_ERROR", "Unable to create user, try again later.")
+	}
+
+	return result.Ok(fromUserModel(user))
 }
