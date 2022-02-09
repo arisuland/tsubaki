@@ -366,7 +366,7 @@ func indexDocuments(prisma *db.PrismaClient, client *es.Client) error {
 				if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
 					logrus.Fatalf("Unable to parse request body: %v", err)
 				} else {
-					logrus.Debugf("Indexed project %s successfully! version=%d", project.ID, int(data["_version"].(float64)))
+					logrus.Debugf("[%d/%d] Indexed project %s successfully! version=%d", i, len(projects), project.ID, int(data["_version"].(float64)))
 				}
 			}
 		}(i, project)
@@ -416,7 +416,7 @@ func indexDocuments(prisma *db.PrismaClient, client *es.Client) error {
 				if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
 					logrus.Fatalf("Unable to parse request body: %v", err)
 				} else {
-					logrus.Debugf("Indexed user %s successfully! version=%d", user.ID, int(data["_version"].(float64)))
+					logrus.Debugf("[%d/%d] Indexed user %s successfully! version=%d", i, len(users), user.ID, int(data["_version"].(float64)))
 				}
 			}
 		}(i, user)

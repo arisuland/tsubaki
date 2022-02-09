@@ -427,7 +427,7 @@ func getRedisConfigFromEnv() (*RedisConfig, error) {
 	}, nil
 }
 
-func getStorageConfigFromEnv() (StorageConfig, error) {
+func getStorageConfigFromEnv() StorageConfig {
 	if provider, ok := os.LookupEnv("TSUBAKI_STORAGE_PROVIDER"); ok {
 		logrus.Debugf("storage: We found a provider with %s!", provider)
 		switch provider {
@@ -443,7 +443,7 @@ func getStorageConfigFromEnv() (StorageConfig, error) {
 						Filesystem: &storage.FilesystemStorageConfig{
 							Directory: actualPath,
 						},
-					}, nil
+					}
 				}
 
 				path := ""
@@ -462,7 +462,7 @@ func getStorageConfigFromEnv() (StorageConfig, error) {
 					Filesystem: &storage.FilesystemStorageConfig{
 						Directory: path,
 					},
-				}, nil
+				}
 			}
 
 		case "s3":
@@ -491,7 +491,7 @@ func getStorageConfigFromEnv() (StorageConfig, error) {
 						Region:    fallbackToString(os.Getenv("TSUBAKI_STORAGE_S3_REGION"), "us-east1"),
 						Bucket:    fallbackToString(os.Getenv("TSUBAKI_STORAGE_S3_BUCKET"), "tsubaki"),
 					},
-				}, nil
+				}
 			}
 		}
 	} else {
@@ -502,7 +502,7 @@ func getStorageConfigFromEnv() (StorageConfig, error) {
 				Filesystem: &storage.FilesystemStorageConfig{
 					Directory: actualPath,
 				},
-			}, nil
+			}
 		}
 
 		path := ""
@@ -521,7 +521,7 @@ func getStorageConfigFromEnv() (StorageConfig, error) {
 			Filesystem: &storage.FilesystemStorageConfig{
 				Directory: path,
 			},
-		}, nil
+		}
 	}
 
 	panic("we should never end up here")
@@ -748,10 +748,7 @@ func LoadFromEnv() (*Config, error) {
 		return nil, err
 	}
 
-	storageConfig, err := getStorageConfigFromEnv()
-	if err != nil {
-		return nil, err
-	}
+	storageConfig := getStorageConfigFromEnv()
 
 	// check if we can enable basic auth
 	var password *string

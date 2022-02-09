@@ -46,6 +46,8 @@ func NewApiV1Router(controller controllers.Controller) chi.Router {
 	r.Mount("/search", newSearchApiRouter())
 	r.Mount("/storage", newStorageRouter())
 	r.Mount("/projects", newProjectsApiRouter())
+	r.Mount("/projects/acl", newProjectAclRouter())
+	r.Mount("/subprojects", newSubprojectsApiRouter())
 
 	return r
 }
