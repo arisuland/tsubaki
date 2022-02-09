@@ -30,8 +30,7 @@ import (
 // the golang.org/x/crypto/argon2 package.
 func GeneratePassword(password string) (string, error) {
 	salt := make([]byte, 16)
-	_, err := rand.Read(salt)
-	if err != nil {
+	if _, err := rand.Read(salt); err != nil {
 		return "", err
 	}
 

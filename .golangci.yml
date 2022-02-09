@@ -10,15 +10,16 @@ linters:
     - dupl
     - exportloopref
     - goconst
-    - godot
-    - goimports
     - goprintffuncname
     - ifshort
     - misspell
     - prealloc
-    - revive
     - rowserrcheck
     - sqlclosecheck
     - unconvert
     - unparam
     - whitespace
+
+  disable:
+    - gosimple
+    - govet
