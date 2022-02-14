@@ -25,7 +25,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"net/http"
 	"net/mail"
+	"strings"
 	"time"
 )
 
@@ -297,4 +299,51 @@ func (UserController) Update(id string, set map[string]interface{}) *result.Resu
 	}
 
 	return result.NoContent()
+}
+
+func (UserController) DeleteUser(uid string) *result.Result {
+	_, err := pkg.GlobalContainer.Prisma.User.FindUnique(db.User.ID.Equals(uid)).Delete().Exec(context.TODO())
+	if err != nil {
+		logrus.Errorf("Unable to delete user %s: %v", uid, err)
+		return result.Err(500, "UNKNOWN_ERROR", "Unable to delete the current user.")
+	}
+
+	// Delete the indices in Elasticsearch if the client exists
+	if pkg.GlobalContainer.ElasticSearch != nil {
+		// Delete the document index from Elasticsearch
+		//
+		// I have to do this myself since I cannot find a way
+		// from the official client. Thanks Elasticsearch.
+		method := "DELETE"
+		var (
+			path   strings.Builder
+			params map[string]string
+		)
+
+		// yes this is from the source code itself
+		// https://github.com/elastic/go-elasticsearch/blob/main/esapi/api.index.go#L79-L212
+		path.Grow(7 + 1 + len("tsubaki-users") + 1 + len("_doc") + len(uid))
+		path.WriteString("http://")
+		path.WriteString("/")
+		path.WriteString("tsubaki-users")
+		path.WriteString("/")
+		path.WriteString("_doc")
+		path.WriteString("/")
+		path.WriteString(uid)
+
+		params = make(map[string]string)
+		params["pretty"] = "true"
+
+		req, err := http.NewRequest(method, path.String(), nil)
+		if err != nil {
+			logrus.Errorf("Unable to create request to delete the document from Elasticsearch. You will have to manually do it yourself")
+		} else {
+			_, err := pkg.GlobalContainer.ElasticSearch.Perform(req)
+			if err != nil {
+				logrus.Errorf("Unable to send out the request to Elasticsearch. You will have to manually do it yourself.")
+			}
+		}
+	}
+
+	return result.Success()
 }

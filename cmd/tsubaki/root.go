@@ -17,6 +17,7 @@
 package tsubaki
 
 import (
+	"arisu.land/tsubaki/cmd/tsubaki/elastic"
 	"arisu.land/tsubaki/server"
 	"arisu.land/tsubaki/util"
 	"fmt"
@@ -65,6 +66,7 @@ func Execute() int {
 		newVersionCommand(),
 		newValidateCommand(),
 		newGenerateCommand(),
+		elastic.NewElasticCommand(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

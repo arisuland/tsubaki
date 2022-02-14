@@ -67,6 +67,14 @@ func NoContent() *Result {
 	}
 }
 
+// Success returns a Result object with no data attached.
+func Success() *Result {
+	return &Result{
+		StatusCode: 200,
+		Success:    true,
+	}
+}
+
 // Err returns a Result object with any error that occurred.
 func Err(status int, code string, message string) *Result {
 	return &Result{

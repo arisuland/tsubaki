@@ -21,8 +21,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/spf13/cobra"
+	"os"
 	"runtime"
 	"strings"
+	"text/template"
 )
 
 type versionInfo struct {
@@ -37,6 +39,7 @@ type versionInfo struct {
 func newVersionCommand() *cobra.Command {
 	var (
 		printJson bool
+		temp      string
 		pretty    bool
 	)
 
@@ -44,16 +47,16 @@ func newVersionCommand() *cobra.Command {
 		Use:   "version",
 		Short: "Returns the current version of Tsubaki.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if printJson {
-				data := &versionInfo{
-					Version:    internal.Version,
-					CommitSHA:  internal.CommitSHA,
-					BuildDate:  internal.BuildDate,
-					GoVersion:  strings.TrimPrefix(runtime.Version(), "go"),
-					GoCompiler: runtime.Compiler,
-					Platform:   fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
-				}
+			data := &versionInfo{
+				Version:    internal.Version,
+				CommitSHA:  internal.CommitSHA,
+				BuildDate:  internal.BuildDate,
+				GoVersion:  strings.TrimPrefix(runtime.Version(), "go"),
+				GoCompiler: runtime.Compiler,
+				Platform:   fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+			}
 
+			if printJson {
 				if pretty {
 					b, err := json.MarshalIndent(data, "", "  ")
 					if err != nil {
@@ -73,6 +76,20 @@ func newVersionCommand() *cobra.Command {
 				}
 			}
 
+			if temp != "" {
+				t := template.New("tsubaki version")
+				t, err := t.Parse(temp);
+				if err != nil {
+					return err
+				}
+
+				if err := t.Execute(os.Stdout, data); err != nil {
+					return err
+				}
+
+				return nil
+			}
+
 			fmt.Printf("tsubaki v%s (commit: %s, built at: %s) on %s/%s\n", internal.Version, internal.CommitSHA, internal.BuildDate, runtime.GOOS, runtime.GOARCH)
 			return nil
 		},
@@ -80,6 +97,7 @@ func newVersionCommand() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&printJson, "json", "j", false, "outputs the version in a JSON format.")
 	cmd.Flags().BoolVarP(&pretty, "pretty", "p", false, "indents the version if `--json` is true.")
+	cmd.Flags().StringVarP(&temp, "template", "t", "", "use a Go template to format the version.")
 
 	return cmd
 }

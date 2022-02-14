@@ -17,13 +17,11 @@
 package pkg
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"arisu.land/tsubaki/internal"
@@ -31,7 +29,6 @@ import (
 	"arisu.land/tsubaki/prisma/db"
 	"github.com/bwmarrin/snowflake"
 	es "github.com/elastic/go-elasticsearch/v8"
-	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/getsentry/sentry-go"
 	"github.com/go-redis/redis/v8"
 	"github.com/segmentio/kafka-go"
@@ -239,9 +236,6 @@ func NewContainer(path string) error {
 
 		serverVersion := data["version"].(map[string]interface{})["number"].(string)
 		logrus.Debugf("Server: %s | Client: %s", serverVersion, es.Version)
-
-		// Now we have to index documents, in a separate goroutine
-		_ = indexDocuments(prisma, client)
 	}
 
 	container := &Container{
@@ -298,129 +292,4 @@ func (c *Container) RedisPing() int64 {
 	} else {
 		return time.Since(t).Milliseconds()
 	}
-}
-
-func indexDocuments(prisma *db.PrismaClient, client *es.Client) error {
-	logrus.Debug("Now indexing documents...")
-	wg := sync.WaitGroup{}
-
-	// query all projects
-	t := time.Now()
-	projects, err := prisma.Project.FindMany().Exec(context.TODO())
-	if err != nil {
-		logrus.Fatalf("Unable to retrieve projects: %v", err)
-		return err
-	}
-
-	logrus.Debugf("Took %s to grab all projects.", time.Since(t).String())
-
-	t = time.Now()
-	// query all users
-	users, err := prisma.User.FindMany().Exec(context.TODO())
-	if err != nil {
-		logrus.Fatalf("Unable to retrieve users: %v", err)
-		return err
-	}
-
-	logrus.Debugf("Took %s to grab all users.", time.Since(t).String())
-
-	// Now, we actually index them!
-	for i, project := range projects {
-		logrus.Debugf("Now indexing project %s...", project.ID)
-
-		wg.Add(1)
-		go func(i int, project db.ProjectModel) {
-			t := time.Now()
-
-			// unmarshal it from json
-			data, err := json.Marshal(&project.InnerProject)
-			if err != nil {
-				logrus.Fatalf("Unable to unmarshal project %s: %v", project.ID, err)
-				return
-			}
-
-			// Setup the request payload
-			req := esapi.IndexRequest{
-				Index:      "tsubaki-projects",
-				DocumentID: project.ID,
-				Body:       bytes.NewReader(data),
-				Refresh:    "true",
-			}
-
-			// Perform the request!!!
-			res, err := req.Do(context.TODO(), client)
-			if err != nil {
-				logrus.Fatalf("Unable to get response from ElasticSearch: %v", err)
-				return
-			}
-
-			defer func() {
-				_ = res.Body.Close()
-			}()
-
-			logrus.Debug("Took %s to send out a request to server", time.Since(t).String())
-			if res.IsError() {
-				logrus.Fatalf("Unable to index project %s [%s]", project.ID, res.Status())
-			} else {
-				var data map[string]interface{}
-				if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
-					logrus.Fatalf("Unable to parse request body: %v", err)
-				} else {
-					logrus.Debugf("[%d/%d] Indexed project %s successfully! version=%d", i, len(projects), project.ID, int(data["_version"].(float64)))
-				}
-			}
-		}(i, project)
-	}
-
-	// now we index the users also!! :D
-	// Now, we actually index them!
-	for i, user := range users {
-		logrus.Debugf("Now indexing user %s...", user.ID)
-
-		wg.Add(1)
-		go func(i int, user db.UserModel) {
-			t := time.Now()
-
-			// unmarshal it from json
-			u := FromDbUserModel(user)
-			data, err := json.Marshal(&u)
-			if err != nil {
-				logrus.Fatalf("Unable to unmarshal project %s: %v", user.ID, err)
-				return
-			}
-
-			// Setup the request payload
-			req := esapi.IndexRequest{
-				Index:      "tsubaki-users",
-				DocumentID: user.ID,
-				Body:       bytes.NewReader(data),
-				Refresh:    "true",
-			}
-
-			// Perform the request!!!
-			res, err := req.Do(context.TODO(), client)
-			if err != nil {
-				logrus.Fatalf("Unable to get response from ElasticSearch: %v", err)
-				return
-			}
-
-			defer func() {
-				_ = res.Body.Close()
-			}()
-
-			logrus.Debugf("Took %s to send out a request to server", time.Since(t).String())
-			if res.IsError() {
-				logrus.Fatalf("Unable to index project %s [%s]", user.ID, res.Status())
-			} else {
-				var data map[string]interface{}
-				if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
-					logrus.Fatalf("Unable to parse request body: %v", err)
-				} else {
-					logrus.Debugf("[%d/%d] Indexed user %s successfully! version=%d", i, len(users), user.ID, int(data["_version"].(float64)))
-				}
-			}
-		}(i, user)
-	}
-
-	return nil
 }
