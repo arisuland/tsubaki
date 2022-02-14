@@ -1,7 +1,6 @@
 # Why is this still Alpine in release, and not using `scratch`?
 # Because, Tsubaki's Docker scripts uses bash as the runtime, so that's
 # pretty much why, so the image is usually around ~3.1-6.2mb, which is still pretty small!
-
 FROM alpine:3.15
 
 RUN apk update && apk add --no-cache bash musl-dev libc-dev gcompat

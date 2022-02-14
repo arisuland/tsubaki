@@ -14,33 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package pkg
+package controllers
 
-import "arisu.land/tsubaki/prisma/db"
+import "arisu.land/tsubaki/pkg/result"
 
-type IndexedUser struct {
-	Description *string `json:"description"`
-	Username    string  `json:"username"`
-	Name        *string `json:"name"`
-	ID          string  `json:"id"`
-}
+// UserInviteController is the controller for user invites!
+type UserInviteController struct{}
 
-func FromDbUserModel(model db.UserModel) IndexedUser {
-	var name *string
-	var desc *string
-
-	if d, ok := model.Description(); ok {
-		desc = &d
-	}
-
-	if n, ok := model.Name(); ok {
-		name = &n
-	}
-
-	return IndexedUser{
-		Description: desc,
-		Username:    model.Username,
-		Name:        name,
-		ID:          model.ID,
-	}
+func (UserInviteController) GenerateInvite() *result.Result {
+	return result.Ok(struct{}{})
 }

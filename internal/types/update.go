@@ -14,33 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package pkg
+package types
 
-import "arisu.land/tsubaki/prisma/db"
-
-type IndexedUser struct {
-	Description *string `json:"description"`
-	Username    string  `json:"username"`
-	Name        *string `json:"name"`
-	ID          string  `json:"id"`
-}
-
-func FromDbUserModel(model db.UserModel) IndexedUser {
-	var name *string
-	var desc *string
-
-	if d, ok := model.Description(); ok {
-		desc = &d
-	}
-
-	if n, ok := model.Name(); ok {
-		name = &n
-	}
-
-	return IndexedUser{
-		Description: desc,
-		Username:    model.Username,
-		Name:        name,
-		ID:          model.ID,
-	}
+// UpdateQuery represents the update query to use to PATCH
+// any Tsubaki object.
+//
+// PATCH /api/v1/users/<id>
+//
+// {
+//     "$set": {
+//        "name": "noel"
+//     }
+// }
+type UpdateQuery struct {
+	Set map[string]interface{} `json:"$set"`
 }

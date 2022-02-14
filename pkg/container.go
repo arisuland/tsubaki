@@ -408,7 +408,7 @@ func indexDocuments(prisma *db.PrismaClient, client *es.Client) error {
 				_ = res.Body.Close()
 			}()
 
-			logrus.Debug("Took %s to send out a request to server", time.Since(t).String())
+			logrus.Debugf("Took %s to send out a request to server", time.Since(t).String())
 			if res.IsError() {
 				logrus.Fatalf("Unable to index project %s [%s]", user.ID, res.Status())
 			} else {

@@ -19,6 +19,9 @@ package result
 // Result represents a response of the action that was executed. This is used
 // in the database controllers.
 type Result struct {
+	// Success determines if this Result was a success.
+	Success bool `json:"success"`
+
 	// Data returns the underlying data that was successful,
 	// this can be empty if Result.Errors are nil.
 	Data interface{} `json:"data,omitempty"`
@@ -44,8 +47,15 @@ type Error struct {
 
 // Ok returns a Result object with the data attached.
 func Ok(data interface{}) *Result {
+	return OkWithStatus(200, data)
+}
+
+// OkWithStatus returns a Result object with a different status code
+// rather than 200 OK.
+func OkWithStatus(status int, data interface{}) *Result {
 	return &Result{
-		StatusCode: 200,
+		StatusCode: status,
+		Success:    true,
 		Data:       data,
 	}
 }
@@ -53,7 +63,7 @@ func Ok(data interface{}) *Result {
 // NoContent a result object using the 201 status code.
 func NoContent() *Result {
 	return &Result{
-		StatusCode: 201,
+		StatusCode: 204,
 	}
 }
 
@@ -61,6 +71,7 @@ func NoContent() *Result {
 func Err(status int, code string, message string) *Result {
 	return &Result{
 		StatusCode: status,
+		Success:    false,
 		Errors: []Error{
 			NewError(code, message),
 		},
@@ -72,6 +83,7 @@ func Errs(status int, errors ...Error) *Result {
 	return &Result{
 		StatusCode: status,
 		Errors:     errors,
+		Success:    false,
 	}
 }
 

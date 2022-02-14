@@ -167,5 +167,134 @@ func (UserController) Create(username string, password string, email string) *re
 		return result.Err(500, "UNKNOWN_ERROR", "Unable to create user, try again later.")
 	}
 
-	return result.Ok(fromUserModel(user))
+	return result.OkWithStatus(201, fromUserModel(user))
+}
+
+func (UserController) Update(id string, set map[string]interface{}) *result.Result {
+	if len(set) == 0 {
+		return result.Err(406, "REQUIRE_UPDATE_PAYLOAD", "You are required to provide a object to update!")
+	}
+
+	// TODO: make the update mutation become a prisma transaction
+
+	// Check if we need to update the gravatar email
+	gravatarEmail, ok := set["gravatar_email"].(string)
+	if ok {
+		// Check if it is a valid email address
+		_, err := mail.ParseAddress(gravatarEmail)
+		if err != nil {
+			return result.Err(406, "INVALID_EMAIL_ADDRESS", fmt.Sprintf("Email %s is not a valid email address.", gravatarEmail))
+		}
+
+		// Now, we can update it!
+		_, err = pkg.GlobalContainer.Prisma.User.FindUnique(db.User.ID.Equals(id)).Update(
+			db.User.GravatarEmail.Set(gravatarEmail),
+		).Exec(context.TODO())
+
+		if err != nil {
+			logrus.Errorf("Unable to update users.%s.gravatar_email = '%s': %v", id, gravatarEmail, err)
+			return result.Err(500, "UNKNOWN_ERROR", "Unable to update the gravatar email for this user.")
+		}
+	}
+
+	useGravatar, ok := set["use_gravatar"].(bool)
+	if ok {
+		_, err := pkg.GlobalContainer.Prisma.User.FindUnique(db.User.ID.Equals(id)).Update(
+			db.User.UseGravatar.Set(useGravatar),
+		).Exec(context.TODO())
+
+		if err != nil {
+			logrus.Errorf("Unable to update users.%s.use_gravatar = '%v': %v", id, useGravatar, err)
+			return result.Err(500, "UNKNOWN_ERROR", "Unable to update the state of this user.")
+		}
+	}
+
+	_, ok = set["avatar_url"].(string)
+	if ok {
+		return result.Err(406, "COMING_SOON", "Custom avatar URIs are a coming soon feature.")
+	}
+
+	desc, ok := set["description"].(*string)
+	if ok {
+		// Check if `desc` is null, if it is, it means the description
+		// should be blank.
+		if desc == nil {
+			// Now, we can update it!
+			_, err := pkg.GlobalContainer.Prisma.User.FindUnique(db.User.ID.Equals(id)).Update(
+				db.User.Description.SetOptional(nil),
+			).Exec(context.TODO())
+
+			if err != nil {
+				logrus.Errorf("Unable to update users.%s.description = nil: %v", id, err)
+				return result.Err(500, "UNKNOWN_ERROR", "Unable to update the description of this user.")
+			}
+		} else {
+			d := *desc
+
+			// Check if the description is over 160 chars
+			if len(d) > 160 {
+				return result.Err(406, "USER_DESCRIPTION_TOO_LONG", "User descriptions cannot go over 160 characters.")
+			}
+
+			// Now, we can update it!
+			_, err := pkg.GlobalContainer.Prisma.User.FindUnique(db.User.ID.Equals(id)).Update(
+				db.User.Description.SetOptional(nil),
+			).Exec(context.TODO())
+
+			if err != nil {
+				logrus.Errorf("Unable to update users.%s.description: %v", id, err)
+				return result.Err(500, "UNKNOWN_ERROR", "Unable to update the description of this user.")
+			}
+		}
+	}
+
+	// Check if the user's password should change
+	pass, ok := set["password"].(string)
+	if ok {
+		hash, err := util.GeneratePassword(pass)
+		if err != nil {
+			logrus.Errorf("Unable to generate a new password hash for user %s: %v", id, err)
+			return result.Err(500, "UNKNOWN_ERROR", "Unable to generate user password.")
+		}
+
+		_, err = pkg.GlobalContainer.Prisma.User.FindUnique(db.User.ID.Equals(id)).Update(
+			db.User.Password.Set(hash),
+		).Exec(context.TODO())
+
+		if err != nil {
+			logrus.Errorf("Unable to update users.%s.password: %v", id, err)
+			return result.Err(500, "UNKNOWN_ERROR", "Unable to update the user password.")
+		}
+	}
+
+	// Maybe the user wants their username to be changed?
+	username, ok := set["username"].(string)
+	if ok {
+		// Check if the username is already taken
+		_, err := pkg.GlobalContainer.Prisma.User.FindUnique(db.User.Username.Equals(username)).Exec(context.TODO())
+		if err != nil {
+			// If the username wasn't found, it's best to assume that
+			// it's available!
+			if errors.Is(err, db.ErrNotFound) {
+				_, err = pkg.GlobalContainer.Prisma.User.FindUnique(db.User.ID.Equals(id)).Update(
+					db.User.Username.Set(username),
+				).Exec(context.TODO())
+
+				if err != nil {
+					logrus.Errorf("Unable to update users.%s.username: %v", id, err)
+					return result.Err(500, "UNKNOWN_ERROR", "Unable to update the username.")
+				}
+
+				return result.NoContent()
+			} else {
+				logrus.Errorf("Unable to update users.%s.username: %v", id, err)
+				return result.Err(500, "UNKNOWN_ERROR", "Unable to update the username.")
+			}
+		}
+
+		// Well, the username is taken. :(
+		return result.Err(406, "USERNAME_ALREADY_TAKEN", "Username is already taken.")
+	}
+
+	return result.NoContent()
 }

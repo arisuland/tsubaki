@@ -18,8 +18,10 @@ package api
 
 import (
 	"arisu.land/tsubaki/internal/controllers"
+	"arisu.land/tsubaki/internal/types"
 	"arisu.land/tsubaki/pkg/result"
 	"arisu.land/tsubaki/util"
+	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 )
@@ -90,6 +92,43 @@ func newUserApiRouter(controller controllers.Controller) chi.Router {
 		}
 
 		res := controller.Users.Create(username, password, email)
+		util.WriteJson(w, res.StatusCode, res)
+	})
+
+	r.Patch("/", func(w http.ResponseWriter, req *http.Request) {
+		status, data, err := util.GetJsonBody(req)
+		if err != nil {
+			util.WriteJson(w, status, result.Err(status, "INVALID_BODY_STRUCTURE", err.Error()))
+			return
+		}
+
+		jb, err := json.Marshal(data)
+		if err != nil {
+			util.WriteJson(w, 406, result.Err(status, "CANNOT_MARSHAL_BODY", err.Error()))
+			return
+		}
+
+		// Check if we can make it in to a `UpdateQuery` struct.
+		var update types.UpdateQuery
+		if err := json.Unmarshal(jb, &update); err != nil {
+			util.WriteJson(w, 406, result.Err(status, "CANNOT_DESERIALIZE_BODY", err.Error()))
+			return
+		}
+
+		// Check if we have the `Authorization` header
+		if req.Header.Get("Authorization") == "" {
+			util.WriteJson(w, 401, result.Err(401, "MISSING_AUTH_TOKEN", "Missing user token in request!"))
+			return
+		}
+
+		// Check if we have the user token available
+		uid := req.Context().Value("userId")
+		if uid == nil {
+			util.WriteJson(w, 403, result.Err(403, "UNKNOWN_USER_ID", "Unable to determine the user ID."))
+			return
+		}
+
+		res := controller.Users.Update(uid.(string), update.Set)
 		util.WriteJson(w, res.StatusCode, res)
 	})
 
