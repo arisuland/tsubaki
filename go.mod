@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.42.30
 	github.com/bshuster-repo/logrus-logstash-hook v1.0.2
 	github.com/bwmarrin/snowflake v0.3.0
-	github.com/elastic/go-elasticsearch/v8 v8.0.0-alpha
+	github.com/elastic/go-elasticsearch/v8 v8.2.0
 	github.com/getsentry/sentry-go v0.12.0
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-redis/redis/v8 v8.11.4
