@@ -17,7 +17,7 @@ require (
 	github.com/mushroomsir/mimetypes v0.0.0-20171113080813-3b41529ef757
 	github.com/prisma/prisma-client-go v0.12.2
 	github.com/prometheus/client_golang v1.11.0
-	github.com/segmentio/kafka-go v0.4.25
+	github.com/segmentio/kafka-go v0.4.32
 	github.com/shopspring/decimal v1.2.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.3.0
