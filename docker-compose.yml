@@ -36,7 +36,7 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:7.16.2
+    image: docker.elastic.co/kibana/kibana:7.17.4
     restart: on-failure
     container_name: kibana
     depends_on:
