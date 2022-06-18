@@ -1,4 +1,4 @@
-FROM golang:1.17.5-alpine AS builder
+FROM golang:1.18.3-alpine AS builder
 
 RUN apk update && apk add make git jq bash
 WORKDIR /build/tsubaki
