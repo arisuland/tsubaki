@@ -3,7 +3,7 @@ module arisu.land/tsubaki
 go 1.17
 
 require (
-	github.com/aws/aws-sdk-go v1.42.30
+	github.com/aws/aws-sdk-go v1.44.41
 	github.com/bshuster-repo/logrus-logstash-hook v1.0.2
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/elastic/go-elasticsearch/v8 v8.0.0-alpha
